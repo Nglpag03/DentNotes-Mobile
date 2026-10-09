@@ -11,6 +11,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { supabase } from "../lib/supabase";
 import type { Patient } from "../types";
+import PatientFormModal from "./PatientFormModal";
 
 interface Props {
   onSelectPatient: (id: string) => void;
@@ -22,6 +23,8 @@ export default function PatientsScreen({ onSelectPatient }: Props) {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const load = useCallback(async () => {
     setError("");
@@ -65,15 +68,26 @@ export default function PatientsScreen({ onSelectPatient }: Props) {
       <StatusBar style="dark" />
 
       <View className="border-b border-purple-100 bg-white/90 px-5 py-4">
-        <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
-          Directory
-        </Text>
-        <Text className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950">
-          All patients
-        </Text>
-        <Text className="mt-1 text-xs text-slate-500">
-          {patients.length} patient{patients.length === 1 ? "" : "s"} on record
-        </Text>
+        <View className="flex-row items-start justify-between">
+          <View className="flex-1">
+            <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
+              Directory
+            </Text>
+            <Text className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950">
+              All patients
+            </Text>
+            <Text className="mt-1 text-xs text-slate-500">
+              {patients.length} patient{patients.length === 1 ? "" : "s"} on record
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => setShowAddModal(true)}
+            className="mt-1 flex-row items-center gap-1 rounded-2xl bg-purple-700 px-4 py-2.5"
+          >
+            <Text className="text-base font-normal text-white">+</Text>
+            <Text className="text-xs font-bold text-white">Add</Text>
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView
@@ -152,6 +166,12 @@ export default function PatientsScreen({ onSelectPatient }: Props) {
           </View>
         </View>
       </ScrollView>
+
+      <PatientFormModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSaved={load}
+      />
     </View>
   );
 }
