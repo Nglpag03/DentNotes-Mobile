@@ -13,7 +13,7 @@ import { supabase } from "../lib/supabase";
 import type { Patient, Session, SessionStatus } from "../types";
 import SessionFormModal from "./SessionFormModal";
 import AiHelper from "../components/AiHelper";
-
+import { Alert } from "react-native";
 interface Props {
   patientId: string;
   onBack: () => void;
@@ -29,7 +29,7 @@ export default function PatientDetailScreen({ patientId, onBack }: Props) {
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  
+  const [editingSession, setEditingSession] = useState<Session | null>(null);
   const load = useCallback(async () => {
     setError("");
 
@@ -68,6 +68,20 @@ export default function PatientDetailScreen({ patientId, onBack }: Props) {
     await load();
     setRefreshing(false);
   }
+
+  async function deleteSession(sessionId: string) {
+const confirmed = await new Promise<boolean>((resolve) => {
+  Alert.alert(
+    "Delete check-up?",
+    "This cannot be undone.",
+    [
+      { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+      { text: "Delete", style: "destructive", onPress: () => resolve(true) },
+    ],
+    { cancelable: true, onDismiss: () => resolve(false) },
+  );
+});
+}
 
   async function changeStatus(sessionId: string, next: SessionStatus) {
     const prev = sessions.find((x) => x.id === sessionId)?.status;
@@ -279,11 +293,27 @@ export default function PatientDetailScreen({ patientId, onBack }: Props) {
                         </View>
                       </View>
 
-                      {s.description ? (
-                        <Text className="mt-4 text-sm leading-6 text-slate-600">
-                          {s.description}
-                        </Text>
-                      ) : null}
+{s.description ? (
+  <Text className="mt-4 text-sm leading-6 text-slate-600">
+    {s.description}
+  </Text>
+) : null}
+
+{/* Actions */}
+<View className="mt-3 flex-row justify-end gap-2 border-t border-slate-100 pt-3">
+  <Pressable
+    onPress={() => setEditingSession(s)}
+    className="rounded-xl bg-purple-50 px-3 py-2"
+  >
+    <Text className="text-xs font-bold text-purple-800">Edit</Text>
+  </Pressable>
+  <Pressable
+    onPress={() => deleteSession(s.id!)}
+    className="rounded-xl bg-red-50 px-3 py-2"
+  >
+    <Text className="text-xs font-bold text-red-600">Delete</Text>
+  </Pressable>
+</View>
 
                       {s.next_steps ? (
                         <View className="mt-4 rounded-2xl bg-purple-50 p-3">
@@ -361,10 +391,14 @@ export default function PatientDetailScreen({ patientId, onBack }: Props) {
           </View>
         </View>
       </ScrollView>
-      <SessionFormModal
-  visible={showAddModal}
+<SessionFormModal
+  visible={showAddModal || !!editingSession}
   patientId={patientId}
-  onClose={() => setShowAddModal(false)}
+  session={editingSession}
+  onClose={() => {
+    setShowAddModal(false);
+    setEditingSession(null);
+  }}
   onSaved={load}
 />
     </View>

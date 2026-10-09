@@ -13,12 +13,13 @@ import {
 import { format } from "date-fns";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
-import type { SessionStatus } from "../types";
+import type { Session, SessionStatus} from "../types";
 import { SESSION_TEMPLATES } from "../lib/sessionTemplates";
 
 interface Props {
   visible: boolean;
   patientId: string;
+  session?: Session | null;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -28,17 +29,26 @@ const STATUSES: SessionStatus[] = ["PLANNED", "IN PROGRESS", "COMPLETED"];
 export default function SessionFormModal({
   visible,
   patientId,
+  session: editingSession,  // 👈 rename to avoid clashing with auth `session`
   onClose,
   onSaved,
 }: Props) {
-  const { session } = useAuth();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [sessionDate, setSessionDate] = useState(
-    new Date().toISOString().slice(0, 10),
+  const { session: authSession } = useAuth();
+  const isEdit = !!editingSession;
+
+  const [title, setTitle] = useState(editingSession?.title ?? "");
+  const [description, setDescription] = useState(
+    editingSession?.description ?? "",
   );
-  const [status, setStatus] = useState<SessionStatus>("PLANNED");
-  const [nextSteps, setNextSteps] = useState("");
+  const [sessionDate, setSessionDate] = useState(
+    editingSession?.session_date?.slice(0, 10) ??
+      new Date().toISOString().slice(0, 10),
+  );
+  const [status, setStatus] = useState<SessionStatus>(
+    editingSession?.status ?? "PLANNED",
+  );
+  const [nextSteps, setNextSteps] = useState(editingSession?.next_steps ?? "");
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
@@ -88,15 +98,19 @@ export default function SessionFormModal({
     // Build an ISO timestamp for the chosen day (midnight local time)
     const isoDate = new Date(`${sessionDate}T09:00:00`).toISOString();
 
-    const { error: insertError } = await supabase.from("sessions").insert({
+    const payload = {
       patient_id: patientId,
       title: title.trim(),
       description: description.trim(),
       session_date: isoDate,
       status,
       next_steps: nextSteps.trim() || null,
-      user_id: session?.user.id,
-    });
+      user_id: authSession?.user.id,
+    };
+
+    const { error: insertError } = isEdit
+      ? await supabase.from("sessions").update(payload).eq("id", editingSession!.id)
+      : await supabase.from("sessions").insert(payload);
 
     setBusy(false);
 
@@ -132,10 +146,10 @@ export default function SessionFormModal({
             <View className="flex-row items-center justify-between border-b border-slate-100 px-6 py-4">
               <View>
                 <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
-                  New check-up
+                  {isEdit ? "Edit check-up" : "New check-up"}
                 </Text>
                 <Text className="mt-1 text-lg font-bold text-slate-950">
-                  Add a session
+                  {isEdit ? "Update session" : "Add a session"}
                 </Text>
               </View>
               <Pressable
@@ -303,7 +317,7 @@ export default function SessionFormModal({
                   <ActivityIndicator color="white" />
                 ) : (
                   <Text className="text-base font-bold text-white">
-                    Save check-up
+                    {isEdit ? "Update check-up" : "Save check-up"}
                   </Text>
                 )}
               </Pressable>
