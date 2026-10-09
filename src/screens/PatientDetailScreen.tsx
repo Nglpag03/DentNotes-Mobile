@@ -12,6 +12,7 @@ import { format, parseISO } from "date-fns";
 import { supabase } from "../lib/supabase";
 import type { Patient, Session, SessionStatus } from "../types";
 import SessionFormModal from "./SessionFormModal";
+import AiHelper from "../components/AiHelper";
 
 interface Props {
   patientId: string;
@@ -221,6 +222,11 @@ export default function PatientDetailScreen({ patientId, onBack }: Props) {
                 </Text>
               </View>
             </View>
+          </View>
+
+          {/* AI helper */}
+          <View className="mb-7">
+            <AiHelper patient={patient} sessions={sessions} />
           </View>
 
           {/* Check-up history */}
