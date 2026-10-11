@@ -1,6 +1,7 @@
 import "./tailwind.css";
 import { useState } from "react";
 import { ActivityIndicator, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import LoginScreen from "./src/screens/LoginScreen";
@@ -8,8 +9,9 @@ import DashboardScreen from "./src/screens/DashboardScreen";
 import PatientsScreen from "./src/screens/PatientsScreen";
 import PatientDetailScreen from "./src/screens/PatientDetailScreen";
 import ScheduleScreen from "./src/screens/ScheduleScreen";
+import OnboardingScreen from "./src/screens/OnboardingScreen";
+import { ThemeProvider } from "./src/context/ThemeContext";
 
-// 👇 Split into explicit variants so TypeScript can narrow correctly
 type Screen =
   | { name: "dashboard" }
   | { name: "patients" }
@@ -19,7 +21,7 @@ type Screen =
   | { name: "patient-from-schedule"; id: string };
 
 function Root() {
-  const { session, loading } = useAuth();
+  const { session, loading, onboardingSeen, markOnboardingSeen   } = useAuth();
   const [screen, setScreen] = useState<Screen>({ name: "dashboard" });
 
   if (loading) {
@@ -29,6 +31,9 @@ function Root() {
         <StatusBar style="dark" />
       </View>
     );
+  }
+    if (!onboardingSeen && !session) {
+    return <OnboardingScreen onFinish={markOnboardingSeen} />;
   }
 
   if (!session) return <LoginScreen />;
@@ -90,8 +95,12 @@ function Root() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Root />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <Root />
+        </AuthProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

@@ -8,23 +8,33 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { Feather } from "@expo/vector-icons";
 import { format, parseISO } from "date-fns";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import type { Patient, Session } from "../types";
+import { cardShadow, statusColors } from "../lib/theme";
+import BottomNav from "../components/BottomNav";
+import DrawerMenu from "../components/DrawerMenu";
 
 interface Props {
   onViewAllPatients: () => void;
   onOpenSchedule: () => void;
 }
 
-export default function DashboardScreen({ onViewAllPatients,onOpenSchedule, }: Props) {
+export default function DashboardScreen({
+  onViewAllPatients,
+  onOpenSchedule,
+}: Props) {
   const { session, signOut } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [upcoming, setUpcoming] = useState<Session[]>([]);
   const [error, setError] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const firstName = session?.user.user_metadata?.first_name || "Doctor";
   const lastName = session?.user.user_metadata?.last_name || "";
@@ -35,12 +45,21 @@ export default function DashboardScreen({ onViewAllPatients,onOpenSchedule, }: P
   const greeting =
     hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
-  const today = format(new Date(), "EEEE, MMMM d").toUpperCase();
+  const todayLabel = format(new Date(), "EEEE, MMM d");
+
+  // Theme-aware color tokens
+  const bg = isDark ? "bg-[#0e0a1a]" : "bg-[#faf8fc]";
+  const cardBg = isDark ? "bg-[#1a1525]" : "bg-white";
+  const cardBorder = isDark ? "border-purple-900/40" : "border-purple-100";
+  const headingText = isDark ? "text-white" : "text-slate-950";
+  const bodyText = isDark ? "text-slate-400" : "text-slate-500";
+  const pillBg = isDark ? "bg-purple-950" : "bg-purple-100";
+  const pillText = isDark ? "text-purple-200" : "text-purple-800";
+  const rowBorder = isDark ? "border-slate-800" : "border-slate-100";
 
   const load = useCallback(async () => {
     setError("");
 
-    // Patients
     const p = await supabase
       .from("patients")
       .select("*")
@@ -48,7 +67,6 @@ export default function DashboardScreen({ onViewAllPatients,onOpenSchedule, }: P
     if (p.error) setError(p.error.message);
     else setPatients((p.data as Patient[]) ?? []);
 
-    // Today's non-completed sessions
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date();
@@ -81,9 +99,9 @@ export default function DashboardScreen({ onViewAllPatients,onOpenSchedule, }: P
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-[#faf8fc]">
+      <View className={`flex-1 items-center justify-center ${bg}`}>
         <ActivityIndicator size="large" color="#7c3aed" />
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
       </View>
     );
   }
@@ -91,219 +109,324 @@ export default function DashboardScreen({ onViewAllPatients,onOpenSchedule, }: P
   const recentPatients = patients.slice(0, 5);
 
   return (
-    <View className="flex-1 bg-[#faf8fc]">
-      <StatusBar style="dark" />
-
-      {/* Header */}
-      <View className="border-b border-purple-100 bg-white/90">
-        <View className="flex-row items-center justify-between px-5 py-4">
-          <View className="flex-row items-center gap-3">
-            <View className="h-11 w-11 items-center justify-center rounded-2xl bg-purple-700">
-              <Text className="text-xl">🦷</Text>
-            </View>
-            <Text className="text-xl font-extrabold tracking-tight text-purple-950">
-              DentNotes
-            </Text>
-          </View>
-
-          <View className="flex-row items-center gap-3">
-            <View className="h-10 w-10 items-center justify-center rounded-full bg-purple-100">
-              <Text className="text-lg">🔔</Text>
-            </View>
-            <Pressable
-              onPress={signOut}
-              className="h-10 w-10 items-center justify-center rounded-full bg-purple-100"
-            >
-              <Text className="text-xs font-bold text-purple-800">
-                {initials}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
+    <View className={`flex-1 ${bg}`}>
+      <StatusBar style="light" />
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 140 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#7c3aed"
+            tintColor="#ffffff"
           />
         }
       >
-        <View className="px-5">
-          {/* Greeting */}
-          <View className="pb-5 pt-6">
-            <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
-              {today}
+        {/* Hero Header */}
+        <View className="rounded-b-[40px] bg-purple-800 pb-10 pt-14">
+          {/* Top row */}
+          <View className="flex-row items-center justify-between px-5">
+            <Pressable
+              onPress={() => setMenuOpen(true)}
+              className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
+            >
+              <Feather name="menu" size={22} color="#ffffff" />
+            </Pressable>
+
+            <View className="flex-1 flex-row items-center justify-center gap-2">
+              <View className="h-6 w-6 items-center justify-center rounded-md bg-white">
+                <Text className="text-xs font-extrabold text-purple-800">D</Text>
+              </View>
+              <Text className="text-lg font-extrabold tracking-tight text-white">
+                DentNotes
+              </Text>
+            </View>
+
+            <View className="flex-row items-center gap-2">
+              <Pressable
+                onPress={toggleTheme}
+                className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
+              >
+                <Feather
+                  name={isDark ? "sun" : "moon"}
+                  size={20}
+                  color="#ffffff"
+                />
+              </Pressable>
+
+              <Pressable className="relative h-11 w-11 items-center justify-center rounded-full bg-white/10">
+                <Feather name="bell" size={20} color="#ffffff" />
+                {upcoming.length > 0 && (
+                  <View className="absolute -right-1 -top-1 h-5 w-5 items-center justify-center rounded-full bg-white">
+                    <Text className="text-[10px] font-extrabold text-purple-800">
+                      {upcoming.length}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Greeting row */}
+          <View className="mt-6 flex-row items-center gap-4 px-5">
+            <View className="h-16 w-16 items-center justify-center rounded-full bg-white/20 ring-4 ring-white/10">
+              <Text className="text-lg font-extrabold text-white">
+                {initials}
+              </Text>
+            </View>
+
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-purple-200">
+                {greeting},
+              </Text>
+              <Text className="mt-0.5 text-2xl font-extrabold text-white">
+                Dr. {firstName} {lastName}
+              </Text>
+              <Text className="mt-1 text-xs text-purple-200">
+                {todayLabel} · {upcoming.length} appointment
+                {upcoming.length === 1 ? "" : "s"} today
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Stats */}
+        <View className="-mt-6 flex-row gap-3 px-5">
+          <View
+            className="flex-1 rounded-3xl bg-purple-500 p-5"
+            style={cardShadow}
+          >
+            <Text className="text-4xl font-extrabold text-white">
+              {upcoming.length}
             </Text>
-            <Text className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950">
-              {greeting}, Dr. {firstName}
+            <Text className="mt-2 text-xs font-semibold text-white/90">
+              Today's appointments
             </Text>
-            <Text className="mt-1 text-sm text-slate-500">
-              {upcoming.length === 0
-                ? "No check-ups scheduled today — a good day to catch up on notes."
-                : `You have ${upcoming.length} check-up${
-                    upcoming.length === 1 ? "" : "s"
-                  } scheduled today.`}
+            <Text className="mt-1 text-[10px] text-white/70">
+              {upcoming.filter((s) => s.status === "COMPLETED").length} completed
             </Text>
           </View>
 
-          {error ? (
-            <View className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
-              <Text className="text-sm text-red-700">{error}</Text>
-            </View>
-          ) : null}
-
-          {/* Metric Cards */}
-          <View className="mb-7 flex-row gap-3">
-            <View className="flex-1 rounded-2xl bg-purple-700 p-4">
-              <Text className="text-3xl font-extrabold text-white">
-                {upcoming.length}
-              </Text>
-              <Text className="mt-2 text-xs font-semibold text-purple-100">
-                Today's appointments
-              </Text>
-            </View>
-            <View className="flex-1 rounded-2xl border border-purple-100 bg-white p-4">
-              <Text className="text-3xl font-extrabold text-purple-950">
-                {patients.length}
-              </Text>
-              <Text className="mt-2 text-xs font-semibold text-slate-500">
-                Total patients
-              </Text>
-            </View>
+          <View
+            className={`flex-1 rounded-3xl border p-5 ${cardBorder} ${cardBg}`}
+            style={cardShadow}
+          >
+            <Text className={`text-4xl font-extrabold ${headingText}`}>
+              {patients.length.toLocaleString()}
+            </Text>
+            <Text className={`mt-2 text-xs font-semibold ${bodyText}`}>
+              Total patients
+            </Text>
+            <Text className={`mt-1 text-[10px] ${bodyText}`}>On record</Text>
           </View>
+        </View>
 
-          {/* Today's check-ups */}
-          <View className="mb-8">
+        {/* Today's Schedule */}
+        <View className="mt-8 px-5">
           <View className="mb-3 flex-row items-end justify-between">
-            <View>
-              <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
-                Your schedule
-              </Text>
-              <Text className="mt-1 text-lg font-bold text-slate-950">
-                Today's check-ups
-              </Text>
-            </View>
+            <Text className={`text-xl font-extrabold ${headingText}`}>
+              Today's Schedule
+            </Text>
             <Pressable onPress={onOpenSchedule}>
-              <Text className="text-xs font-semibold text-purple-600">View all</Text>
+              <View
+                className={`flex-row items-center gap-1 rounded-full px-3 py-1.5 ${pillBg}`}
+              >
+                <Text className={`text-[11px] font-bold ${pillText}`}>
+                  View all
+                </Text>
+                <Text className={`text-[11px] ${pillText}`}>›</Text>
+              </View>
             </Pressable>
           </View>
 
-            {upcoming.length > 0 ? (
-              <View className="gap-3">
-                {upcoming.map((s) => (
-                  <View
-                    key={s.id}
-                    className="flex-row items-center gap-3 rounded-2xl border border-purple-100 bg-white p-4"
-                  >
-                    <View className="h-12 w-12 items-center justify-center rounded-xl bg-purple-100">
-                      <Text className="text-sm font-extrabold text-purple-900">
-                        {format(parseISO(s.session_date), "HH:mm")}
-                      </Text>
-                      <Text className="text-[9px] font-bold uppercase text-purple-900">
-                        {format(parseISO(s.session_date), "a")}
-                      </Text>
-                    </View>
-
-                    <View className="flex-1">
-                      <Text className="text-sm font-bold text-slate-900">
-                        {s.patients?.first_name} {s.patients?.last_name}
-                      </Text>
-                      <Text className="mt-1 text-xs text-slate-500">
-                        {s.title}
-                      </Text>
-                    </View>
-
-                    <View
-                      className={`rounded-full px-2.5 py-1 ${
-                        s.status === "IN PROGRESS"
-                          ? "bg-purple-100"
-                          : "bg-slate-100"
-                      }`}
-                    >
-                      <Text
-                        className={`text-[9px] font-bold ${
-                          s.status === "IN PROGRESS"
-                            ? "text-purple-800"
-                            : "text-slate-600"
-                        }`}
-                      >
-                        {s.status}
-                      </Text>
+          {upcoming.length > 0 ? (
+            <View className="gap-3">
+              {upcoming.map((s) => (
+                <Pressable
+                  key={s.id}
+                  className={`flex-row items-center gap-3 rounded-2xl border p-4 ${cardBorder} ${cardBg}`}
+                  style={cardShadow}
+                >
+                  <View className="w-16">
+                    <Text className={`text-lg font-extrabold ${headingText}`}>
+                      {format(parseISO(s.session_date), "HH:mm")}
+                    </Text>
+                    <View className="mt-0.5 flex-row items-center gap-1">
+                      <Feather
+                        name="clock"
+                        size={10}
+                        color={isDark ? "#94a3b8" : "#94a3b8"}
+                      />
+                      <Text className={`text-[10px] ${bodyText}`}>Room 1</Text>
                     </View>
                   </View>
-                ))}
+
+                  <View
+                    className="h-10 w-1 rounded-full"
+                    style={{
+                      backgroundColor:
+                        s.status === "COMPLETED"
+                          ? "#10b981"
+                          : s.status === "IN PROGRESS"
+                            ? "#7c3aed"
+                            : "#d8b4fe",
+                    }}
+                  />
+
+                  <View className="flex-1">
+                    <Text className={`text-sm font-extrabold ${headingText}`}>
+                      {s.patients?.first_name} {s.patients?.last_name}
+                    </Text>
+                    <Text className={`mt-0.5 text-xs ${bodyText}`}>
+                      {s.title}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={{ backgroundColor: statusColors[s.status]?.bg }}
+                    className="rounded-full px-3 py-1.5"
+                  >
+                    <Text
+                      style={{ color: statusColors[s.status]?.text }}
+                      className="text-[10px] font-bold"
+                    >
+                      {s.status === "PLANNED"
+                        ? "Upcoming"
+                        : s.status === "COMPLETED"
+                          ? "Done"
+                          : "In Progress"}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <View
+              className={`items-center rounded-2xl border border-dashed px-5 py-10 ${
+                isDark
+                  ? "border-purple-900/60 bg-[#1a1525]"
+                  : "border-purple-200 bg-white"
+              }`}
+            >
+              <View
+                className={`h-14 w-14 items-center justify-center rounded-2xl ${
+                  isDark ? "bg-purple-950" : "bg-purple-50"
+                }`}
+              >
+                <Text className="text-2xl">☕</Text>
               </View>
-            ) : (
-              <View className="items-center rounded-2xl border border-dashed border-purple-200 bg-white px-5 py-8">
-                <Text className="text-3xl">☕</Text>
-                <Text className="mt-3 text-sm font-bold text-slate-700">
-                  No check-ups scheduled today
+              <Text className={`mt-3 text-sm font-bold ${headingText}`}>
+                No check-ups scheduled today
+              </Text>
+              <Text className={`mt-1 text-xs ${bodyText}`}>
+                Enjoy the break.
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Recent Patients */}
+        <View className="mt-8 px-5">
+          <View className="mb-3 flex-row items-end justify-between">
+            <Text className={`text-xl font-extrabold ${headingText}`}>
+              Recent Patients
+            </Text>
+            <Pressable onPress={onViewAllPatients}>
+              <View
+                className={`flex-row items-center gap-1 rounded-full px-3 py-1.5 ${pillBg}`}
+              >
+                <Text className={`text-[11px] font-bold ${pillText}`}>
+                  See all
                 </Text>
-                <Text className="mt-1 text-xs text-slate-400">
-                  Enjoy the break.
+                <Text className={`text-[11px] ${pillText}`}>›</Text>
+              </View>
+            </Pressable>
+          </View>
+
+          <View
+            className={`overflow-hidden rounded-2xl border ${cardBorder} ${cardBg}`}
+            style={cardShadow}
+          >
+            {recentPatients.map((p, idx) => (
+              <View
+                key={p.id}
+                className={`flex-row items-center gap-3 p-4 ${
+                  idx !== recentPatients.length - 1
+                    ? `border-b ${rowBorder}`
+                    : ""
+                }`}
+              >
+                <View
+                  className={`h-11 w-11 items-center justify-center rounded-full ${
+                    isDark ? "bg-purple-900/40" : "bg-purple-100"
+                  }`}
+                >
+                  <Text
+                    className={`text-xs font-extrabold ${
+                      isDark ? "text-purple-200" : "text-purple-800"
+                    }`}
+                  >
+                    {p.first_name.charAt(0)}
+                    {p.last_name.charAt(0)}
+                  </Text>
+                </View>
+                <View className="flex-1">
+                  <Text className={`text-sm font-bold ${headingText}`}>
+                    {p.first_name} {p.last_name}
+                  </Text>
+                  <Text className={`mt-0.5 text-xs ${bodyText}`}>
+                    {p.condition || "No condition recorded"}
+                  </Text>
+                </View>
+                <Text className={`text-[10px] ${bodyText}`}>
+                  {p.created_at
+                    ? format(new Date(p.created_at), "MMM d")
+                    : ""}
+                </Text>
+                <Feather
+                  name="chevron-right"
+                  size={16}
+                  color={isDark ? "#a78bfa" : "#c4b5fd"}
+                />
+              </View>
+            ))}
+
+            {recentPatients.length === 0 && (
+              <View className="px-5 py-10">
+                <Text
+                  className={`text-center text-sm font-semibold ${headingText}`}
+                >
+                  No patients yet
+                </Text>
+                <Text
+                  className={`mt-1 text-center text-sm ${bodyText}`}
+                >
+                  Tap + to add your first patient.
                 </Text>
               </View>
             )}
           </View>
-
-          {/* Recent patients */}
-          <View>
-          <View className="mb-3 flex-row items-end justify-between">
-            <View>
-              <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
-                Directory
-              </Text>
-              <Text className="mt-1 text-lg font-bold text-slate-950">
-                Recent patients
-              </Text>
-            </View>
-            <Pressable onPress={onViewAllPatients}>
-              <Text className="text-xs font-semibold text-purple-600">View all</Text>
-            </Pressable>
-          </View>
-
-            <View className="overflow-hidden rounded-2xl border border-purple-100 bg-white">
-              {recentPatients.map((p) => (
-                <View
-                  key={p.id}
-                  className="flex-row items-center gap-3 border-b border-slate-100 p-4 last:border-b-0"
-                >
-                  <View className="h-11 w-11 items-center justify-center rounded-full bg-purple-100">
-                    <Text className="text-xs font-extrabold text-purple-800">
-                      {p.first_name.charAt(0)}
-                      {p.last_name.charAt(0)}
-                    </Text>
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm font-bold text-slate-900">
-                      {p.first_name} {p.last_name}
-                    </Text>
-                    <Text className="mt-1 text-xs text-slate-500">
-                      {p.condition || "No condition recorded"}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-
-              {recentPatients.length === 0 && (
-                <View className="px-5 py-10">
-                  <Text className="text-center text-sm font-semibold text-slate-700">
-                    No patients yet
-                  </Text>
-                  <Text className="mt-1 text-center text-sm text-slate-400">
-                    Add your first patient from the web app.
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
         </View>
       </ScrollView>
+
+      <BottomNav
+        active="home"
+        onNavigate={(tab) => {
+          if (tab === "schedule") onOpenSchedule();
+          if (tab === "patients") onViewAllPatients();
+        }}
+        onAdd={onViewAllPatients}
+      />
+
+      <DrawerMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onNavigateHome={() => setMenuOpen(false)}
+        onNavigateSchedule={onOpenSchedule}
+        onNavigatePatients={onViewAllPatients}
+        onSignOut={signOut}
+      />
     </View>
   );
 }

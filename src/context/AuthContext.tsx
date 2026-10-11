@@ -8,10 +8,13 @@ import {
 } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type AuthState = {
   session: Session | null;
   loading: boolean;
+  onboardingSeen: boolean;
+  markOnboardingSeen: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (
     email: string,
@@ -25,6 +28,8 @@ type AuthState = {
 const AuthContext = createContext<AuthState>({
   session: null,
   loading: true,
+  onboardingSeen: true,
+  markOnboardingSeen: async () => {},
   signIn: async () => ({ error: "Auth not ready" }),
   signUp: async () => ({ error: "Auth not ready", needsConfirmation: false }),
   signOut: async () => {},
@@ -33,8 +38,14 @@ const AuthContext = createContext<AuthState>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [onboardingSeen, setOnboardingSeen] = useState(true);
 
   useEffect(() => {
+
+    AsyncStorage.getItem("dentnotes-onboarding-seen").then((value) => {
+      setOnboardingSeen(value === "1");
+    });
+
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
@@ -48,6 +59,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+    const markOnboardingSeen = useCallback(async () => {
+    await AsyncStorage.setItem("dentnotes-onboarding-seen", "1");
+    setOnboardingSeen(true);
+  }, []);
+
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -89,7 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ session, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ session, loading,onboardingSeen,
+        markOnboardingSeen, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

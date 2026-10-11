@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { Feather } from "@expo/vector-icons";
 import {
   addDays,
   format,
@@ -17,7 +18,9 @@ import {
   startOfDay,
 } from "date-fns";
 import { supabase } from "../lib/supabase";
+import { useTheme } from "../context/ThemeContext";
 import type { Session, SessionStatus } from "../types";
+import { cardShadow, statusColors } from "../lib/theme";
 
 interface Props {
   onSelectPatient: (id: string) => void;
@@ -27,6 +30,7 @@ interface Props {
 const STATUSES: SessionStatus[] = ["PLANNED", "IN PROGRESS", "COMPLETED"];
 
 export default function ScheduleScreen({ onSelectPatient, onBack }: Props) {
+  const { isDark } = useTheme();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -34,7 +38,19 @@ export default function ScheduleScreen({ onSelectPatient, onBack }: Props) {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  // 14-day window centered on today
+  const bg = isDark ? "bg-[#0e0a1a]" : "bg-[#faf8fc]";
+  const cardBg = isDark ? "bg-[#1a1525]" : "bg-white";
+  const cardBorder = isDark ? "border-purple-900/40" : "border-purple-100";
+  const headingText = isDark ? "text-white" : "text-slate-950";
+  const bodyText = isDark ? "text-slate-400" : "text-slate-500";
+  const headerBg = isDark ? "bg-[#1a1525]" : "bg-white";
+  const headerBorder = isDark ? "border-purple-900/40" : "border-purple-100";
+  const chipBg = isDark ? "bg-[#1a1525]" : "bg-white";
+  const chipBorder = isDark ? "border-purple-900/40" : "border-purple-100";
+  const activeChipBg = "bg-purple-800";
+  const pillBg = isDark ? "bg-purple-950" : "bg-purple-100";
+  const pillText = isDark ? "text-purple-200" : "text-purple-800";
+
   const days = useMemo(() => {
     const today = startOfDay(new Date());
     return Array.from({ length: 14 }, (_, i) => addDays(today, i - 7));
@@ -97,9 +113,7 @@ export default function ScheduleScreen({ onSelectPatient, onBack }: Props) {
 
   const daySessions = useMemo(
     () =>
-      sessions.filter((s) =>
-        isSameDay(parseISO(s.session_date), selectedDay),
-      ),
+      sessions.filter((s) => isSameDay(parseISO(s.session_date), selectedDay)),
     [sessions, selectedDay],
   );
 
@@ -135,27 +149,26 @@ export default function ScheduleScreen({ onSelectPatient, onBack }: Props) {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-[#faf8fc]">
+      <View className={`flex-1 items-center justify-center ${bg}`}>
         <ActivityIndicator size="large" color="#7c3aed" />
-        <StatusBar style="dark" />
+        <StatusBar style={isDark ? "light" : "dark"} />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-[#faf8fc]">
-      <StatusBar style="dark" />
+    <View className={`flex-1 ${bg}`}>
+      <StatusBar style={isDark ? "light" : "dark"} />
 
-      {/* Header */}
-      <View className="border-b border-purple-100 bg-white px-5 py-3">
+      <View className={`border-b px-5 py-3 ${headerBorder} ${headerBg}`}>
         <View className="flex-row items-center">
           <Pressable
             onPress={onBack}
-            className="mr-3 h-10 w-10 items-center justify-center rounded-full border border-purple-100"
+            className={`mr-3 h-10 w-10 items-center justify-center rounded-full border ${chipBorder}`}
           >
-            <Text className="text-xl text-purple-800">‹</Text>
+            <Feather name="arrow-left" size={20} color={isDark ? "#ffffff" : "#6d28d9"} />
           </Pressable>
-          <Text className="flex-1 text-center text-sm font-bold text-purple-950">
+          <Text className={`flex-1 text-center text-sm font-bold ${headingText}`}>
             Schedule
           </Text>
           <View className="w-10" />
@@ -174,12 +187,11 @@ export default function ScheduleScreen({ onSelectPatient, onBack }: Props) {
         }
       >
         <View className="px-5 pt-6">
-          {/* Page heading */}
           <View className="mb-4">
             <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
               Upcoming
             </Text>
-            <Text className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950">
+            <Text className={`mt-1 text-2xl font-extrabold tracking-tight ${headingText}`}>
               Your schedule
             </Text>
           </View>
@@ -190,7 +202,6 @@ export default function ScheduleScreen({ onSelectPatient, onBack }: Props) {
             </View>
           ) : null}
 
-          {/* Week strip */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -209,22 +220,24 @@ export default function ScheduleScreen({ onSelectPatient, onBack }: Props) {
                   onPress={() => setSelectedDay(startOfDay(day))}
                   className={`h-20 w-14 items-center justify-center rounded-2xl border ${
                     active
-                      ? "border-purple-800 bg-purple-800"
+                      ? activeChipBg
                       : today
-                        ? "border-purple-300 bg-white"
-                        : "border-purple-100 bg-white"
+                        ? isDark
+                          ? "border-purple-500 " + chipBg
+                          : "border-purple-300 " + chipBg
+                        : chipBorder + " " + chipBg
                   }`}
                 >
                   <Text
                     className={`text-[9px] font-bold uppercase tracking-wider ${
-                      active ? "text-purple-200" : "text-slate-400"
+                      active ? "text-purple-200" : bodyText
                     }`}
                   >
                     {format(day, "EEE")}
                   </Text>
                   <Text
                     className={`mt-0.5 text-lg font-extrabold ${
-                      active ? "text-white" : "text-slate-800"
+                      active ? "text-white" : headingText
                     }`}
                   >
                     {format(day, "d")}
@@ -243,32 +256,34 @@ export default function ScheduleScreen({ onSelectPatient, onBack }: Props) {
             })}
           </ScrollView>
 
-          {/* Day label */}
           <View className="mb-3 flex-row items-end justify-between">
             <View>
               <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
                 {selectedLabel}
               </Text>
-              <Text className="mt-1 text-lg font-bold text-slate-950">
+              <Text className={`mt-1 text-lg font-bold ${headingText}`}>
                 {format(selectedDay, "MMMM d, yyyy")}
               </Text>
             </View>
-            <View className="rounded-full bg-purple-100 px-2.5 py-1">
-              <Text className="text-[10px] font-bold text-purple-800">
+            <View className={`rounded-full px-2.5 py-1 ${pillBg}`}>
+              <Text className={`text-[10px] font-bold ${pillText}`}>
                 {daySessions.length} scheduled
               </Text>
             </View>
           </View>
 
-          {/* Sessions */}
           {daySessions.length === 0 ? (
-            <View className="items-center rounded-[24px] border border-dashed border-purple-200 bg-white px-6 py-14">
+            <View
+              className={`items-center rounded-[24px] border border-dashed px-6 py-14 ${
+                isDark ? "border-purple-900/60 bg-[#1a1525]" : "border-purple-200 bg-white"
+              }`}
+            >
               <Text className="text-3xl">☕</Text>
-              <Text className="mt-4 text-base font-bold text-slate-800">
+              <Text className={`mt-4 text-base font-bold ${headingText}`}>
                 Nothing scheduled {selectedLabel.toLowerCase()}
               </Text>
-              <Text className="mt-1 text-center text-sm text-slate-400">
-                Tap another day in the strip above to see what's coming up.
+              <Text className={`mt-1 text-center text-sm ${bodyText}`}>
+                Tap another day in the strip above.
               </Text>
             </View>
           ) : (
@@ -279,8 +294,8 @@ export default function ScheduleScreen({ onSelectPatient, onBack }: Props) {
                     <Text className="text-[11px] font-bold uppercase tracking-widest text-purple-600">
                       {group.label}
                     </Text>
-                    <View className="rounded-full bg-purple-100 px-2 py-0.5">
-                      <Text className="text-[10px] font-bold text-purple-800">
+                    <View className={`rounded-full px-2 py-0.5 ${pillBg}`}>
+                      <Text className={`text-[10px] font-bold ${pillText}`}>
                         {group.sessions.length}
                       </Text>
                     </View>
@@ -292,72 +307,68 @@ export default function ScheduleScreen({ onSelectPatient, onBack }: Props) {
                       return (
                         <View
                           key={s.id}
-                          className={`overflow-hidden rounded-2xl border border-purple-100 bg-white ${
+                          className={`overflow-hidden rounded-2xl border ${cardBorder} ${cardBg} ${
                             isUpdating ? "opacity-70" : ""
                           }`}
+                          style={cardShadow}
                         >
                           <Pressable
-                            onPress={() =>
-                              onSelectPatient(s.patient_id)
-                            }
+                            onPress={() => onSelectPatient(s.patient_id)}
                             className="flex-row items-center gap-3 p-4"
                           >
-                            <View className="h-12 w-12 items-center justify-center rounded-xl bg-purple-100">
-                              <Text className="text-xs font-extrabold text-purple-900">
+                            <View className={`h-12 w-12 items-center justify-center rounded-xl ${
+                              isDark ? "bg-purple-900/40" : "bg-purple-100"
+                            }`}>
+                              <Text className={`text-xs font-extrabold ${
+                                isDark ? "text-purple-200" : "text-purple-900"
+                              }`}>
                                 {format(parseISO(s.session_date), "HH:mm")}
                               </Text>
-                              <Text className="text-[9px] font-bold uppercase text-purple-900">
+                              <Text className={`text-[9px] font-bold uppercase ${
+                                isDark ? "text-purple-200" : "text-purple-900"
+                              }`}>
                                 {format(parseISO(s.session_date), "a")}
                               </Text>
                             </View>
                             <View className="flex-1">
-                              <Text className="text-sm font-bold text-slate-900">
-                                {s.patients?.first_name}{" "}
-                                {s.patients?.last_name}
+                              <Text className={`text-sm font-bold ${headingText}`}>
+                                {s.patients?.first_name} {s.patients?.last_name}
                               </Text>
-                              <Text className="mt-1 text-xs text-slate-500">
+                              <Text className={`mt-1 text-xs ${bodyText}`}>
                                 {s.title}
                               </Text>
                             </View>
-                            <Text className="text-lg text-slate-300">›</Text>
+                            <Feather
+                              name="chevron-right"
+                              size={16}
+                              color={isDark ? "#a78bfa" : "#c4b5fd"}
+                            />
                           </Pressable>
 
-                          {/* Status row */}
-                          <View className="flex-row border-t border-slate-100 bg-slate-50 p-1.5">
+                          <View
+                            className={`flex-row border-t p-1.5 ${
+                              isDark ? "border-slate-800 bg-[#0e0a1a]" : "border-slate-100 bg-slate-50"
+                            }`}
+                          >
                             {STATUSES.map((status) => {
                               const active = s.status === status;
                               return (
                                 <Pressable
                                   key={status}
-                                  onPress={() =>
-                                    changeStatus(s.id!, status)
-                                  }
+                                  onPress={() => changeStatus(s.id!, status)}
                                   disabled={isUpdating}
-                                  className={`flex-1 rounded-lg py-2 ${
-                                    active
-                                      ? status === "COMPLETED"
-                                        ? "bg-emerald-100"
-                                        : status === "IN PROGRESS"
-                                          ? "bg-purple-100"
-                                          : "bg-white"
-                                      : ""
-                                  }`}
+                                  style={active ? { backgroundColor: statusColors[status]?.bg } : undefined}
+                                  className="flex-1 rounded-lg py-2"
                                 >
                                   <Text
+                                    style={active ? { color: statusColors[status]?.text } : undefined}
                                     className={`text-center text-[10px] font-bold ${
-                                      active
-                                        ? status === "COMPLETED"
-                                          ? "text-emerald-800"
-                                          : status === "IN PROGRESS"
-                                            ? "text-purple-800"
-                                            : "text-slate-800"
-                                        : "text-slate-400"
+                                      active ? "" : bodyText
                                     }`}
                                   >
                                     {status === "IN PROGRESS"
                                       ? "In progress"
-                                      : status.charAt(0) +
-                                        status.slice(1).toLowerCase()}
+                                      : status.charAt(0) + status.slice(1).toLowerCase()}
                                   </Text>
                                 </Pressable>
                               );

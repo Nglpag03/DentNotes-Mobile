@@ -9,8 +9,11 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { Feather } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
+import { useTheme } from "../context/ThemeContext";
 import type { Patient } from "../types";
+import { cardShadow } from "../lib/theme";
 import PatientFormModal from "./PatientFormModal";
 
 interface Props {
@@ -18,13 +21,28 @@ interface Props {
 }
 
 export default function PatientsScreen({ onSelectPatient }: Props) {
+  const { isDark } = useTheme();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
-
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Theme tokens
+  const bg = isDark ? "bg-[#0e0a1a]" : "bg-[#faf8fc]";
+  const headerBg = isDark ? "bg-[#1a1525]" : "bg-white/90";
+  const headerBorder = isDark ? "border-purple-900/40" : "border-purple-100";
+  const cardBg = isDark ? "bg-[#1a1525]" : "bg-white";
+  const cardBorder = isDark ? "border-purple-900/40" : "border-purple-100";
+  const headingText = isDark ? "text-white" : "text-slate-950";
+  const bodyText = isDark ? "text-slate-400" : "text-slate-500";
+  const rowBorder = isDark ? "border-slate-800" : "border-slate-100";
+  const inputBg = isDark ? "bg-[#1a1525]" : "bg-white";
+  const inputBorder = isDark ? "border-purple-900/40" : "border-slate-200";
+  const inputText = isDark ? "text-white" : "text-slate-900";
+  const avatarBg = isDark ? "bg-purple-900/40" : "bg-purple-100";
+  const avatarText = isDark ? "text-purple-200" : "text-purple-800";
 
   const load = useCallback(async () => {
     setError("");
@@ -56,27 +74,27 @@ export default function PatientsScreen({ onSelectPatient }: Props) {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-[#faf8fc]">
+      <View className={`flex-1 items-center justify-center ${bg}`}>
         <ActivityIndicator size="large" color="#7c3aed" />
-        <StatusBar style="dark" />
+        <StatusBar style={isDark ? "light" : "dark"} />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-[#faf8fc]">
-      <StatusBar style="dark" />
+    <View className={`flex-1 ${bg}`}>
+      <StatusBar style={isDark ? "light" : "dark"} />
 
-      <View className="border-b border-purple-100 bg-white/90 px-5 py-4">
+      <View className={`border-b px-5 py-4 ${headerBorder} ${headerBg}`}>
         <View className="flex-row items-start justify-between">
           <View className="flex-1">
             <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
               Directory
             </Text>
-            <Text className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950">
+            <Text className={`mt-1 text-2xl font-extrabold tracking-tight ${headingText}`}>
               All patients
             </Text>
-            <Text className="mt-1 text-xs text-slate-500">
+            <Text className={`mt-1 text-xs ${bodyText}`}>
               {patients.length} patient{patients.length === 1 ? "" : "s"} on record
             </Text>
           </View>
@@ -84,7 +102,7 @@ export default function PatientsScreen({ onSelectPatient }: Props) {
             onPress={() => setShowAddModal(true)}
             className="mt-1 flex-row items-center gap-1 rounded-2xl bg-purple-700 px-4 py-2.5"
           >
-            <Text className="text-base font-normal text-white">+</Text>
+            <Feather name="plus" size={16} color="#ffffff" />
             <Text className="text-xs font-bold text-white">Add</Text>
           </Pressable>
         </View>
@@ -92,7 +110,7 @@ export default function PatientsScreen({ onSelectPatient }: Props) {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 140 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -100,11 +118,14 @@ export default function PatientsScreen({ onSelectPatient }: Props) {
             tintColor="#7c3aed"
           />
         }
+        keyboardShouldPersistTaps="handled"
       >
         <View className="px-5 pt-4">
           {/* Search */}
-          <View className="mb-4 flex-row items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2">
-            <Text className="text-lg text-slate-400">🔍</Text>
+          <View
+            className={`mb-4 flex-row items-center gap-2 rounded-2xl border px-4 py-2 ${inputBorder} ${inputBg}`}
+          >
+            <Feather name="search" size={18} color={isDark ? "#94a3b8" : "#94a3b8"} />
             <TextInput
               value={search}
               onChangeText={setSearch}
@@ -112,11 +133,11 @@ export default function PatientsScreen({ onSelectPatient }: Props) {
               placeholderTextColor="#94a3b8"
               autoCapitalize="none"
               autoCorrect={false}
-              className="flex-1 text-sm text-slate-900"
+              className={`flex-1 text-sm ${inputText}`}
             />
             {search ? (
               <Pressable onPress={() => setSearch("")}>
-                <Text className="text-sm font-bold text-slate-400">✕</Text>
+                <Feather name="x" size={16} color="#94a3b8" />
               </Pressable>
             ) : null}
           </View>
@@ -127,38 +148,43 @@ export default function PatientsScreen({ onSelectPatient }: Props) {
             </View>
           ) : null}
 
-          {/* List */}
-          <View className="overflow-hidden rounded-2xl border border-purple-100 bg-white">
-            {filtered.map((p) => (
+          <View className={`overflow-hidden rounded-2xl border ${cardBorder} ${cardBg}`} style={cardShadow}>
+            {filtered.map((p, idx) => (
               <Pressable
                 key={p.id}
                 onPress={() => onSelectPatient(p.id!)}
-                className="flex-row items-center gap-3 border-b border-slate-100 p-4 active:bg-purple-50 last:border-b-0"
+                className={`flex-row items-center gap-3 p-4 ${
+                  idx !== filtered.length - 1 ? `border-b ${rowBorder}` : ""
+                }`}
               >
-                <View className="h-11 w-11 items-center justify-center rounded-full bg-purple-100">
-                  <Text className="text-xs font-extrabold text-purple-800">
+                <View className={`h-11 w-11 items-center justify-center rounded-full ${avatarBg}`}>
+                  <Text className={`text-xs font-extrabold ${avatarText}`}>
                     {p.first_name.charAt(0)}
                     {p.last_name.charAt(0)}
                   </Text>
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm font-bold text-slate-900">
+                  <Text className={`text-sm font-bold ${headingText}`}>
                     {p.first_name} {p.last_name}
                   </Text>
-                  <Text className="mt-1 text-xs text-slate-500">
+                  <Text className={`mt-1 text-xs ${bodyText}`}>
                     {p.condition || "No condition recorded"}
                   </Text>
                 </View>
-                <Text className="text-lg text-slate-300">›</Text>
+                <Feather
+                  name="chevron-right"
+                  size={16}
+                  color={isDark ? "#a78bfa" : "#c4b5fd"}
+                />
               </Pressable>
             ))}
 
             {filtered.length === 0 && (
               <View className="px-5 py-10">
-                <Text className="text-center text-sm font-semibold text-slate-700">
+                <Text className={`text-center text-sm font-semibold ${headingText}`}>
                   No patients found
                 </Text>
-                <Text className="mt-1 text-center text-sm text-slate-400">
+                <Text className={`mt-1 text-center text-sm ${bodyText}`}>
                   Try another name.
                 </Text>
               </View>

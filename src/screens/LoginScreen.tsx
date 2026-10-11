@@ -12,7 +12,8 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "../context/AuthContext";
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
+  
 type Mode = "login" | "signup";
 
 export default function LoginScreen() {
@@ -234,6 +235,18 @@ export default function LoginScreen() {
                   {mode === "login" ? "Sign up" : "Sign in"}
                 </Text>
               </Pressable>
+
+              {/* <Pressable
+  onPress={async () => {
+    await AsyncStorage.removeItem("dentnotes-onboarding-seen");
+    alert("Onboarding reset! Close and reopen the app.");
+  }}
+  className="mt-4 self-center"
+>
+  <Text className="text-[10px] text-slate-400">
+    Reset onboarding (dev only)
+  </Text>
+</Pressable> */}
             </View>
           </View>
         </ScrollView>
