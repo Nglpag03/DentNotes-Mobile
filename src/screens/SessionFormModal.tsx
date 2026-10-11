@@ -10,11 +10,18 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { format } from "date-fns";
+import { BlurView } from "expo-blur";
+import { Feather } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
-import type { Session, SessionStatus} from "../types";
+import { useTheme } from "../context/ThemeContext";
+import type { Session, SessionStatus } from "../types";
 import { SESSION_TEMPLATES } from "../lib/sessionTemplates";
+import { statusColors } from "../lib/theme";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
+import { format, parseISO } from "date-fns";
 
 interface Props {
   visible: boolean;
@@ -26,38 +33,91 @@ interface Props {
 
 const STATUSES: SessionStatus[] = ["PLANNED", "IN PROGRESS", "COMPLETED"];
 
+const STATUS_LABEL: Record<SessionStatus, string> = {
+  PLANNED: "Planned",
+  "IN PROGRESS": "In Progress",
+  COMPLETED: "Completed",
+};
+
+const ROOM_PRESETS = [
+  "Room 1",
+  "Room 2",
+  "Room 3",
+  "Chair 1",
+  "Chair 2",
+  "Suite A",
+];
+
 export default function SessionFormModal({
   visible,
   patientId,
-  session: editingSession,  
+  session: editingSession,
   onClose,
   onSaved,
 }: Props) {
   const { session: authSession } = useAuth();
+  const { isDark } = useTheme();
   const isEdit = !!editingSession;
 
   const [title, setTitle] = useState(editingSession?.title ?? "");
   const [description, setDescription] = useState(
     editingSession?.description ?? "",
   );
-  const [sessionDate, setSessionDate] = useState(
-    editingSession?.session_date?.slice(0, 10) ??
-      new Date().toISOString().slice(0, 10),
-  );
+const [selectedDate, setSelectedDate] = useState<Date>(() => {
+  if (editingSession?.session_date) return parseISO(editingSession.session_date);
+  return new Date();
+});
+
+const [selectedTime, setSelectedTime] = useState<Date>(() => {
+  if (editingSession?.session_date) return parseISO(editingSession.session_date);
+  // Default to 9:00 AM
+  const d = new Date();
+  d.setHours(9, 0, 0, 0);
+  return d;
+});
+
+const [showDatePicker, setShowDatePicker] = useState(false);
+const [showTimePicker, setShowTimePicker] = useState(false);
   const [status, setStatus] = useState<SessionStatus>(
     editingSession?.status ?? "PLANNED",
   );
   const [nextSteps, setNextSteps] = useState(editingSession?.next_steps ?? "");
-
+  const [room, setRoom] = useState(editingSession?.room ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
-  const [room, setRoom] = useState(editingSession?.room ?? "");
+
+  // Theme tokens
+  const sheetBg = isDark ? "bg-[#1a1525]" : "bg-white";
+  const inputBg = isDark ? "bg-[#252033]" : "bg-purple-50";
+  const inputText = isDark ? "text-white" : "text-slate-900";
+  const inputBorder = isDark ? "border-purple-900/40" : "border-purple-100";
+  const labelText = isDark ? "text-slate-400" : "text-slate-500";
+  const chipBg = isDark ? "bg-[#252033]" : "bg-purple-100";
+  const chipText = isDark ? "text-purple-200" : "text-purple-800";
+  const statusTrack = isDark ? "bg-[#0e0a1a]" : "bg-slate-100";
+  const footerBorder = isDark ? "border-slate-800" : "border-slate-100";
+  const cancelBg = isDark ? "bg-[#252033]" : "bg-purple-100";
+  const cancelText = isDark ? "text-purple-200" : "text-purple-800";
+  const footerBg = isDark ? "bg-[#1a1525]" : "bg-white";
+
+  function onDateChange(event: DateTimePickerEvent, date?: Date) {
+    setShowDatePicker(false);
+    if (event.type === "set" && date) setSelectedDate(date);
+  }
+
+  function onTimeChange(event: DateTimePickerEvent, time?: Date) {
+    setShowTimePicker(false);
+    if (event.type === "set" && time) setSelectedTime(time);
+  }
 
   function reset() {
     setTitle("");
     setDescription("");
-    setSessionDate(new Date().toISOString().slice(0, 10));
+    setSelectedDate(new Date());
+    const t = new Date();
+    t.setHours(9, 0, 0, 0);
+    setSelectedTime(t);
     setStatus("PLANNED");
     setNextSteps("");
     setRoom("");
@@ -65,24 +125,34 @@ export default function SessionFormModal({
     setBusy(false);
     setActiveTemplate(null);
   }
+
   function applyTemplate(id: string) {
-  const t = SESSION_TEMPLATES.find((x) => x.id === id);
-  if (!t) return;
+    const t = SESSION_TEMPLATES.find((x) => x.id === id);
+    if (!t) return;
 
-  // Tap the same template again to toggle off
-  if (activeTemplate === id) {
-    setActiveTemplate(null);
-    setTitle("");
-    setDescription("");
-    setNextSteps("");
-    return;
+    if (activeTemplate === id) {
+      setActiveTemplate(null);
+      setTitle("");
+      setDescription("");
+      setNextSteps("");
+      return;
+    }
+
+    function onDateChange(event: DateTimePickerEvent, date?: Date) {
+      setShowDatePicker(false);
+      if (event.type === "set" && date) setSelectedDate(date);
+    }
+
+    function onTimeChange(event: DateTimePickerEvent, time?: Date) {
+      setShowTimePicker(false);
+      if (event.type === "set" && time) setSelectedTime(time);
+    }
+
+    setActiveTemplate(id);
+    setTitle(t.title);
+    setDescription(t.description);
+    setNextSteps(t.next_steps ?? "");
   }
-
-  setActiveTemplate(id);
-  setTitle(t.title);
-  setDescription(t.description);
-  setNextSteps(t.next_steps ?? "");
-}
 
   async function handleSave() {
     if (!title.trim()) {
@@ -97,8 +167,14 @@ export default function SessionFormModal({
     setBusy(true);
     setError("");
 
-    // Build an ISO timestamp for the chosen day (midnight local time)
-    const isoDate = new Date(`${sessionDate}T09:00:00`).toISOString();
+    const combined = new Date(selectedDate);
+    combined.setHours(
+      selectedTime.getHours(),
+      selectedTime.getMinutes(),
+      0,
+      0,
+    );
+    const isoDate = combined.toISOString();
 
     const payload = {
       patient_id: patientId,
@@ -112,7 +188,10 @@ export default function SessionFormModal({
     };
 
     const { error: insertError } = isEdit
-      ? await supabase.from("sessions").update(payload).eq("id", editingSession!.id)
+      ? await supabase
+          .from("sessions")
+          .update(payload)
+          .eq("id", editingSession!.id)
       : await supabase.from("sessions").insert(payload);
 
     setBusy(false);
@@ -139,33 +218,72 @@ export default function SessionFormModal({
       transparent
       onRequestClose={handleClose}
     >
-      <View className="flex-1 justify-end bg-black/40">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          className="max-h-[90%]"
-        >
-          <View className="rounded-t-[32px] bg-white">
-            {/* Header */}
-            <View className="flex-row items-center justify-between border-b border-slate-100 px-6 py-4">
-              <View>
-                <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
+      <View className="flex-1 justify-end">
+        {/* Blurred backdrop (tappable to close) */}
+        <Pressable onPress={handleClose} className="absolute inset-0">
+          <BlurView
+            intensity={Platform.OS === "ios" ? 60 : 100}
+            tint="dark"
+            style={{ flex: 1 }}
+          />
+          <View className="absolute inset-0 bg-purple-950/40" />
+        </Pressable>
+
+        {/* Sheet */}
+        <View className={`h-[92%] rounded-t-[32px] ${sheetBg}`}>
+          {/* Hero header */}
+          <View className="rounded-t-[32px] bg-purple-800 px-6 pb-16 pt-6">
+            <View className="flex-row items-start justify-between">
+              <View className="flex-1">
+                <Text className="text-2xl font-extrabold text-white">
                   {isEdit ? "Edit check-up" : "New check-up"}
                 </Text>
-                <Text className="mt-1 text-lg font-bold text-slate-950">
-                  {isEdit ? "Update session" : "Add a session"}
+                <Text className="mt-1 text-xs text-purple-200">
+                  {isEdit
+                    ? "Update this clinical note"
+                    : "Record a clinical note"}
                 </Text>
               </View>
               <Pressable
                 onPress={handleClose}
-                className="h-10 w-10 items-center justify-center rounded-full bg-slate-100"
+                className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
               >
-                <Text className="text-lg text-slate-500">✕</Text>
+                <Feather name="x" size={20} color="#ffffff" />
               </Pressable>
             </View>
+          </View>
 
+          {/* Floating icon badge */}
+          <View className="-mt-10 items-center">
+            <View
+              className={`h-20 w-20 items-center justify-center rounded-full ${sheetBg}`}
+              style={{
+                borderWidth: 4,
+                borderColor: isDark ? "#1a1525" : "#ffffff",
+              }}
+            >
+              <Feather
+                name={isEdit ? "edit-2" : "file-text"}
+                size={28}
+                color="#7c3aed"
+              />
+            </View>
+          </View>
+
+          {/* Body + Footer inside KeyboardAvoidingView */}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            className="flex-1"
+          >
             <ScrollView
-              contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
+              contentContainerStyle={{
+                padding: 24,
+                paddingTop: 16,
+                paddingBottom: 24,
+              }}
               keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              className="flex-1"
             >
               {error ? (
                 <View className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
@@ -174,50 +292,47 @@ export default function SessionFormModal({
               ) : null}
 
               {/* Quick templates */}
-              <View className="mb-5">
-                <Text className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Quick templates
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
-                >
-                  {SESSION_TEMPLATES.map((t) => {
-                    const active = activeTemplate === t.id;
-                    return (
-                      <Pressable
-                        key={t.id}
-                        onPress={() => applyTemplate(t.id)}
-                        className={`flex-row items-center gap-1.5 rounded-full border px-3 py-2 ${
-                          active
-                            ? "border-purple-800 bg-purple-800"
-                            : "border-slate-200 bg-white"
+              <Text className={`mb-2 text-xs font-bold ${labelText}`}>
+                Quick templates
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
+                className="mb-2"
+              >
+                {SESSION_TEMPLATES.map((t) => {
+                  const active = activeTemplate === t.id;
+                  return (
+                    <Pressable
+                      key={t.id}
+                      onPress={() => applyTemplate(t.id)}
+                      className={`flex-row items-center gap-1.5 rounded-full px-3 py-2.5 ${
+                        active ? "bg-purple-800" : chipBg
+                      }`}
+                    >
+                      <Text className="text-sm">{t.emoji}</Text>
+                      <Text
+                        className={`text-xs font-bold ${
+                          active ? "text-white" : chipText
                         }`}
                       >
-                        <Text className="text-sm">{t.emoji}</Text>
-                        <Text
-                          className={`text-xs font-bold ${
-                            active ? "text-white" : "text-slate-600"
-                          }`}
-                        >
-                          {t.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-                {activeTemplate ? (
-                  <Text className="mt-2 text-[11px] text-purple-700">
-                    Template applied — edit any field to customize.
-                  </Text>
-                ) : null}
-              </View>
+                        {t.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              {activeTemplate ? (
+                <Text className="mb-4 text-[11px] text-purple-500">
+                  Template applied — edit any field to customize.
+                </Text>
+              ) : (
+                <View className="mb-3" />
+              )}
 
               {/* Title */}
-              <Text className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-                Title
-              </Text>
+              <Text className={`mb-2 text-xs font-bold ${labelText}`}>Title</Text>
               <TextInput
                 value={title}
                 onChangeText={(v) => {
@@ -226,16 +341,16 @@ export default function SessionFormModal({
                 }}
                 placeholder="e.g. Routine cleaning"
                 placeholderTextColor="#94a3b8"
-                className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900"
+                className={`mb-4 rounded-2xl border px-4 py-3.5 text-sm ${inputBg} ${inputText} ${inputBorder}`}
               />
 
               {/* Description */}
-              <Text className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+              <Text className={`mb-2 text-xs font-bold ${labelText}`}>
                 Description
               </Text>
               <TextInput
                 value={description}
-               onChangeText={(v) => {
+                onChangeText={(v) => {
                   setDescription(v);
                   setActiveTemplate(null);
                 }}
@@ -244,25 +359,63 @@ export default function SessionFormModal({
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                className="mb-4 min-h-[100] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900"
+                className={`mb-4 min-h-[100] rounded-2xl border px-4 py-3.5 text-sm ${inputBg} ${inputText} ${inputBorder}`}
               />
 
-              {/* Date */}
-              <Text className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-                Date
-              </Text>
-              <TextInput
-                value={sessionDate}
-                onChangeText={setSessionDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#94a3b8"
-                autoCapitalize="none"
-                autoCorrect={false}
-                className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900"
-              />
+              {/* Date + Time row */}
+              <View className="mb-4 flex-row gap-3">
+                {/* Date picker */}
+                <View className="flex-1">
+                  <Text className={`mb-2 text-xs font-bold ${labelText}`}>Date</Text>
+                  <Pressable
+                    onPress={() => setShowDatePicker(true)}
+                    className={`flex-row items-center gap-2 rounded-2xl border px-4 py-3.5 ${inputBg} ${inputBorder}`}
+                  >
+                    <Feather name="calendar" size={16} color="#7c3aed" />
+                    <Text className={`flex-1 text-sm ${inputText}`}>
+                      {format(selectedDate, "MMM d, yyyy")}
+                    </Text>
+                  </Pressable>
+                </View>
+
+                {/* Time picker */}
+                <View className="flex-1">
+                  <Text className={`mb-2 text-xs font-bold ${labelText}`}>Time</Text>
+                  <Pressable
+                    onPress={() => setShowTimePicker(true)}
+                    className={`flex-row items-center gap-2 rounded-2xl border px-4 py-3.5 ${inputBg} ${inputBorder}`}
+                  >
+                    <Feather name="clock" size={16} color="#7c3aed" />
+                    <Text className={`flex-1 text-sm ${inputText}`}>
+                      {format(selectedTime, "h:mm a")}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Native pickers (render conditionally) */}
+              {showDatePicker && (
+                <DateTimePicker
+                  value={selectedDate}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "inline" : "default"}
+                  onChange={onDateChange}
+                  themeVariant={isDark ? "dark" : "light"}
+                />
+              )}
+
+              {showTimePicker && (
+                <DateTimePicker
+                  value={selectedTime}
+                  mode="time"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={onTimeChange}
+                  themeVariant={isDark ? "dark" : "light"}
+                />
+              )}
 
               {/* Room */}
-              <Text className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+              <Text className={`mb-2 text-xs font-bold ${labelText}`}>
                 Room / Location
               </Text>
               <TextInput
@@ -271,32 +424,65 @@ export default function SessionFormModal({
                 placeholder="e.g. Room 1, Chair 2, Suite A"
                 placeholderTextColor="#94a3b8"
                 autoCapitalize="words"
-                className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900"
+                className={`mb-2 rounded-2xl border px-4 py-3.5 text-sm ${inputBg} ${inputText} ${inputBorder}`}
               />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 6, paddingVertical: 4 }}
+                className="mb-4"
+              >
+                {ROOM_PRESETS.map((r) => {
+                  const active = room === r;
+                  return (
+                    <Pressable
+                      key={r}
+                      onPress={() => setRoom(active ? "" : r)}
+                      className={`rounded-full px-3 py-1.5 ${
+                        active ? "bg-purple-800" : chipBg
+                      }`}
+                    >
+                      <Text
+                        className={`text-[11px] font-bold ${
+                          active ? "text-white" : chipText
+                        }`}
+                      >
+                        {r}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
 
               {/* Status */}
-              <Text className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+              <Text className={`mb-2 text-xs font-bold ${labelText}`}>
                 Status
               </Text>
-              <View className="mb-4 flex-row rounded-2xl bg-slate-100 p-1">
+              <View className={`mb-4 flex-row rounded-full p-1 ${statusTrack}`}>
                 {STATUSES.map((s) => {
                   const active = status === s;
                   return (
                     <Pressable
                       key={s}
                       onPress={() => setStatus(s)}
-                      className={`flex-1 rounded-xl py-2.5 ${
-                        active ? "bg-white" : ""
-                      }`}
+                      style={
+                        active
+                          ? { backgroundColor: statusColors[s]?.bg }
+                          : undefined
+                      }
+                      className="flex-1 items-center rounded-full py-2.5"
                     >
                       <Text
-                        className={`text-center text-[11px] font-bold ${
-                          active ? "text-purple-800" : "text-slate-500"
+                        style={
+                          active
+                            ? { color: statusColors[s]?.text }
+                            : undefined
+                        }
+                        className={`text-[11px] font-bold ${
+                          active ? "" : labelText
                         }`}
                       >
-                        {s === "IN PROGRESS"
-                          ? "In Progress"
-                          : s.charAt(0) + s.slice(1).toLowerCase()}
+                        {STATUS_LABEL[s]}
                       </Text>
                     </Pressable>
                   );
@@ -304,7 +490,7 @@ export default function SessionFormModal({
               </View>
 
               {/* Next steps */}
-              <Text className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+              <Text className={`mb-2 text-xs font-bold ${labelText}`}>
                 Next steps
               </Text>
               <TextInput
@@ -318,28 +504,42 @@ export default function SessionFormModal({
                 multiline
                 numberOfLines={2}
                 textAlignVertical="top"
-                className="mb-6 min-h-[60] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900"
+                className={`min-h-[60] rounded-2xl border px-4 py-3.5 text-sm ${inputBg} ${inputText} ${inputBorder}`}
               />
-
-              {/* Save */}
-              <Pressable
-                onPress={handleSave}
-                disabled={busy}
-                className={`h-12 items-center justify-center rounded-2xl ${
-                  busy ? "bg-purple-400" : "bg-purple-700"
-                }`}
-              >
-                {busy ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text className="text-base font-bold text-white">
-                    {isEdit ? "Update check-up" : "Save check-up"}
-                  </Text>
-                )}
-              </Pressable>
             </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
+
+            {/* Fixed footer */}
+            <View
+              className={`border-t px-6 py-4 ${footerBorder} ${footerBg}`}
+            >
+              <View className="flex-row gap-3">
+                <Pressable
+                  onPress={handleClose}
+                  className={`flex-1 items-center justify-center rounded-full py-4 ${cancelBg}`}
+                >
+                  <Text className={`text-sm font-bold ${cancelText}`}>
+                    Cancel
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleSave}
+                  disabled={busy}
+                  className={`flex-1 items-center justify-center rounded-full py-4 ${
+                    busy ? "bg-purple-400" : "bg-purple-800"
+                  }`}
+                >
+                  {busy ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <Text className="text-sm font-bold text-white">
+                      {isEdit ? "Update" : "Save"}
+                    </Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
       </View>
     </Modal>
   );

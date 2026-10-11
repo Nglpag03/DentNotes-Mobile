@@ -16,8 +16,7 @@ import { useTheme } from "../context/ThemeContext";
 import type { Patient, Session } from "../types";
 import { cardShadow, statusColors } from "../lib/theme";
 import BottomNav from "../components/BottomNav";
-import DrawerMenu from "../components/DrawerMenu";
-import NotificationsPanel from "../components/NotificationsPanel";
+
 import WeeklyBarChart from "../components/WeeklyBarChart";
 import { DashboardSkeleton } from "../components/Skeleton";
 import PatientFormModal from "./PatientFormModal";
@@ -27,17 +26,21 @@ import SearchBar from "../components/SearchBar";
 import SessionDetailSheet from "../components/SessionDetailSheet";
 import SessionFormModal from "./SessionFormModal";
 import type { SessionStatus } from "../types";
+import ProfileMenu from "../components/ProfileMenu";
+import HeaderActions from "../components/HeaderActions";
 
 interface Props {
   onViewAllPatients: () => void;
   onOpenSchedule: () => void;
   onOpenSearch: () => void;
+  onSelectPatient: (id: string) => void;
 }
 
 export default function DashboardScreen({
   onViewAllPatients,
   onOpenSchedule,
-  onOpenSearch
+  onOpenSearch,
+  onSelectPatient,
 }: Props) {
   const { session, signOut } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -46,8 +49,7 @@ export default function DashboardScreen({
   const [patients, setPatients] = useState<Patient[]>([]);
   const [upcoming, setUpcoming] = useState<Session[]>([]);
   const [error, setError] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
+
 
   const firstName = session?.user.user_metadata?.first_name || "Doctor";
   const lastName = session?.user.user_metadata?.last_name || "";
@@ -72,36 +74,46 @@ export default function DashboardScreen({
   const pillText = isDark ? "text-purple-200" : "text-purple-800";
   const rowBorder = isDark ? "border-slate-800" : "border-slate-100";
 
-  const load = useCallback(async () => {
-    setError("");
+const load = useCallback(async () => {
+  setError("");
 
-    const p = await supabase
-      .from("patients")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (p.error) setError(p.error.message);
-    else setPatients((p.data as Patient[]) ?? []);
+  // Patients
+  const p = await supabase
+    .from("patients")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (p.error) setError(p.error.message);
+  else setPatients((p.data as Patient[]) ?? []);
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+  // Today's non-completed sessions (for Today's Schedule)
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date();
+  endOfDay.setHours(23, 59, 59, 999);
 
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - 13);
-    weekStart.setHours(0, 0, 0, 0);
+  const s = await supabase
+    .from("sessions")
+    .select("*, patients(first_name, last_name)")
+    .neq("status", "COMPLETED")
+    .gte("session_date", startOfDay.toISOString())
+    .lte("session_date", endOfDay.toISOString())
+    .order("session_date", { ascending: true });
 
-    const s = await supabase
-      .from("sessions")
-      .select("*, patients(first_name, last_name)")
-      .neq("status", "COMPLETED")
-      .gte("session_date", startOfDay.toISOString())
-      .lte("session_date", endOfDay.toISOString())
-      .gte("session_date", weekStart.toISOString())
-      .order("session_date", { ascending: true });
+  if (!s.error) setUpcoming((s.data as Session[]) ?? []);
 
-    if (!s.error) setUpcoming((s.data as Session[]) ?? []);
-  }, []);
+  // 👇 NEW: Last 14 days (for the weekly chart)
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - 13);
+  weekStart.setHours(0, 0, 0, 0);
+
+  const w = await supabase
+    .from("sessions")
+    .select("*, patients(first_name, last_name)")
+    .gte("session_date", weekStart.toISOString())
+    .order("session_date", { ascending: true });
+
+  if (!w.error) setWeekSessions((w.data as Session[]) ?? []);
+}, []);
 
   const [weekSessions, setWeekSessions] = useState<Session[]>([]);
 
@@ -179,50 +191,24 @@ export default function DashboardScreen({
         {/* Hero Header */}
         <View className="rounded-b-[40px] bg-purple-800 pb-10 pt-14">
           {/* Top row */}
-          <View className="flex-row items-center justify-between px-5">
-            <Pressable
-              onPress={() => setMenuOpen(true)}
-              className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
-            >
-              <Feather name="menu" size={22} color="#ffffff" />
-            </Pressable>
+<View className="flex-row items-center justify-between px-5">
+  <ProfileMenu />
 
-            <View className="flex-1 flex-row items-center justify-center gap-2">
-              <View className="h-6 w-6 items-center justify-center rounded-md bg-white">
-                <Text className="text-xs font-extrabold text-purple-800">D</Text>
-              </View>
-              <Text className="text-lg font-extrabold tracking-tight text-white">
-                DentNotes
-              </Text>
-            </View>
+  <View className="flex-1 flex-row items-center justify-center gap-2">
+    <View className="h-6 w-6 items-center justify-center rounded-md bg-white">
+      <Text className="text-xs font-extrabold text-purple-800">D</Text>
+    </View>
+    <Text className="text-lg font-extrabold tracking-tight text-white">
+      DentNotes
+    </Text>
+  </View>
 
-            <View className="flex-row items-center gap-2">
-              <Pressable
-                onPress={toggleTheme}
-                className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
-              >
-                <Feather
-                  name={isDark ? "sun" : "moon"}
-                  size={20}
-                  color="#ffffff"
-                />
-              </Pressable>
-
-              <Pressable
-                onPress={() => setNotificationsOpen(true)}
-                className="relative h-11 w-11 items-center justify-center rounded-full bg-white/10"
-              >
-                <Feather name="bell" size={20} color="#ffffff" />
-                {upcoming.length > 0 && (
-                  <View className="absolute -right-1 -top-1 h-5 w-5 items-center justify-center rounded-full bg-white">
-                    <Text className="text-[10px] font-extrabold text-purple-800">
-                      {upcoming.length}
-                    </Text>
-                  </View>
-                )}
-              </Pressable>
-            </View>
-          </View>
+  <HeaderActions
+    sessions={upcoming}
+    onOpenSchedule={onOpenSchedule}
+    onSelectPatient={onSelectPatient} 
+  />
+</View>
 
           {/* Greeting row */}
           <View className="mt-6 flex-row items-center gap-4 px-5">
@@ -409,69 +395,72 @@ export default function DashboardScreen({
             </Pressable>
           </View>
 
-          <View
-            className={`overflow-hidden rounded-2xl border ${cardBorder} ${cardBg}`}
-            style={cardShadow}
-          >
-            {recentPatients.map((p, idx) => (
-              <View
-                key={p.id}
-                className={`flex-row items-center gap-3 p-4 ${
-                  idx !== recentPatients.length - 1
-                    ? `border-b ${rowBorder}`
-                    : ""
-                }`}
-              >
-                <View
-                  className={`h-11 w-11 items-center justify-center rounded-full ${
-                    isDark ? "bg-purple-900/40" : "bg-purple-100"
-                  }`}
+            {recentPatients.length > 0 ? (
+              <View className="gap-3">
+                {recentPatients.map((p) => (
+                <Pressable
+                  key={p.id}
+                  onPress={() => onSelectPatient(p.id!)}
+                  className={`flex-row items-center gap-3 rounded-2xl border p-4 ${cardBorder} ${cardBg}`}
+                  style={cardShadow}
                 >
-                  <Text
-                    className={`text-xs font-extrabold ${
-                      isDark ? "text-purple-200" : "text-purple-800"
-                    }`}
-                  >
-                    {p.first_name.charAt(0)}
-                    {p.last_name.charAt(0)}
-                  </Text>
-                </View>
-                <View className="flex-1">
-                  <Text className={`text-sm font-bold ${headingText}`}>
-                    {p.first_name} {p.last_name}
-                  </Text>
-                  <Text className={`mt-0.5 text-xs ${bodyText}`}>
-                    {p.condition || "No condition recorded"}
-                  </Text>
-                </View>
-                <Text className={`text-[10px] ${bodyText}`}>
-                  {p.created_at
-                    ? format(new Date(p.created_at), "MMM d")
-                    : ""}
-                </Text>
-                <Feather
-                  name="chevron-right"
-                  size={16}
-                  color={isDark ? "#a78bfa" : "#c4b5fd"}
-                />
+                    <View
+                      className={`h-11 w-11 items-center justify-center rounded-full ${
+                        isDark ? "bg-purple-900/40" : "bg-purple-100"
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs font-extrabold ${
+                          isDark ? "text-purple-200" : "text-purple-800"
+                        }`}
+                      >
+                        {p.first_name.charAt(0)}
+                        {p.last_name.charAt(0)}
+                      </Text>
+                    </View>
+                    <View className="flex-1">
+                      <Text
+                        className={`text-sm font-extrabold ${headingText}`}
+                        numberOfLines={1}
+                      >
+                        {p.first_name} {p.last_name}
+                      </Text>
+                      <Text className={`mt-0.5 text-xs ${bodyText}`} numberOfLines={1}>
+                        {p.condition || "No condition recorded"}
+                      </Text>
+                    </View>
+                    <Text className={`text-[10px] ${bodyText}`}>
+                      {p.created_at ? format(new Date(p.created_at), "MMM d") : ""}
+                    </Text>
+                    <Feather
+                      name="chevron-right"
+                      size={16}
+                      color={isDark ? "#a78bfa" : "#c4b5fd"}
+                    />
+                  </Pressable>
+                ))}
               </View>
-            ))}
-
-            {recentPatients.length === 0 && (
-              <View className="px-5 py-10">
-                <Text
-                  className={`text-center text-sm font-semibold ${headingText}`}
-                >
-                  No patients yet
-                </Text>
-                <Text
-                  className={`mt-1 text-center text-sm ${bodyText}`}
-                >
-                  Tap + to add your first patient.
-                </Text>
-              </View>
-            )}
-          </View>
+            ) : (
+  <View
+    className={`items-center rounded-2xl border border-dashed px-5 py-10 ${
+      isDark ? "border-purple-900/60 bg-[#1a1525]" : "border-purple-200 bg-white"
+    }`}
+  >
+    <View
+      className={`h-14 w-14 items-center justify-center rounded-2xl ${
+        isDark ? "bg-purple-950" : "bg-purple-50"
+      }`}
+    >
+      <Feather name="users" size={26} color="#7c3aed" />
+    </View>
+    <Text className={`mt-3 text-sm font-bold ${headingText}`}>
+      No patients yet
+    </Text>
+    <Text className={`mt-1 text-xs ${bodyText}`}>
+      Tap + to add your first patient.
+    </Text>
+  </View>
+)}
         </View>
       </ScrollView>
 
@@ -484,25 +473,6 @@ export default function DashboardScreen({
         onAdd={() => setShowPatientForm(true)}
       />
 
-      <NotificationsPanel
-        visible={notificationsOpen}
-        sessions={upcoming}
-        onClose={() => setNotificationsOpen(false)}
-        onSelectPatient={() => {
-          setNotificationsOpen(false);
-          onViewAllPatients();
-        }}
-        onOpenSchedule={onOpenSchedule}
-      />
-        
-      <DrawerMenu
-        visible={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        onNavigateHome={() => setMenuOpen(false)}
-        onNavigateSchedule={onOpenSchedule}
-        onNavigatePatients={onViewAllPatients}
-        onSignOut={signOut}
-      />
 
       <PatientFormModal
           visible={showPatientForm}
@@ -517,7 +487,7 @@ export default function DashboardScreen({
         onStatusChange={changeSessionStatus}
         onOpenPatient={(patientId) => {
           setSelectedSession(null);
-          onViewAllPatients();
+          onSelectPatient(patientId);
         }}
         onEdit={(session) => {
           setSelectedSession(null);

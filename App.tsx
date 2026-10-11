@@ -87,32 +87,38 @@ if (screen.name === "patient-from-search") {
 }
 
 
-  if (screen.name === "schedule") {
-    return (
-      <ScheduleScreen
-        onBack={() => setScreen({ name: "dashboard" })}
-        onSelectPatient={(id) =>
-          setScreen({ name: "patient-from-schedule", id })
-        }
-      />
-    );
-  }
+if (screen.name === "schedule") {
+  return (
+    <ScheduleScreen
+      onSelectPatient={(id) =>
+        setScreen({ name: "patient-from-schedule", id })
+      }
+      onNavigateHome={() => setScreen({ name: "dashboard" })}
+      onOpenPatients={() => setScreen({ name: "patients" })}
+    />
+  );
+}
 
-  if (screen.name === "patients") {
-    return (
-      <PatientsScreen
-        onSelectPatient={(id) =>
-          setScreen({ name: "patient-from-patients", id })
-        }
-      />
-    );
-  }
+if (screen.name === "patients") {
+  return (
+    <PatientsScreen
+      onSelectPatient={(id) =>
+        setScreen({ name: "patient-from-patients", id })
+      }
+      onNavigateHome={() => setScreen({ name: "dashboard" })}
+      onOpenSchedule={() => setScreen({ name: "schedule" })}
+    />
+  );
+}
 
   return (
     <DashboardScreen
       onViewAllPatients={() => setScreen({ name: "patients" })}
       onOpenSchedule={() => setScreen({ name: "schedule" })}
       onOpenSearch={() => setScreen({ name: "search" })}
+      onSelectPatient={(id) =>
+      setScreen({ name: "patient-from-dashboard", id })
+    }
     />
   );
 }

@@ -15,14 +15,22 @@ import { useTheme } from "../context/ThemeContext";
 import type { Patient } from "../types";
 import { cardShadow } from "../lib/theme";
 import PatientFormModal from "./PatientFormModal";
+import BottomNav from "../components/BottomNav";
+import ProfileMenu from "../components/ProfileMenu";
+import HeaderActions from "../components/HeaderActions";
+import type { Session } from "../types";
 
 interface Props {
   onSelectPatient: (id: string) => void;
-  autoOpenForm?: boolean;
-  onFormOpened?: () => void;
+  onNavigateHome: () => void;
+  onOpenSchedule: () => void;
 }
 
-export default function PatientsScreen({ onSelectPatient, autoOpenForm, onFormOpened }: Props) {
+export default function PatientsScreen({
+  onSelectPatient,
+  onNavigateHome,
+  onOpenSchedule,
+}: Props) {
   const { isDark } = useTheme();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,8 +38,7 @@ export default function PatientsScreen({ onSelectPatient, autoOpenForm, onFormOp
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-
-  // Theme tokens
+  const [sessions, setSessions] = useState<Session[]>([]);
   const bg = isDark ? "bg-[#0e0a1a]" : "bg-[#faf8fc]";
   const headerBg = isDark ? "bg-[#1a1525]" : "bg-white/90";
   const headerBorder = isDark ? "border-purple-900/40" : "border-purple-100";
@@ -46,16 +53,34 @@ export default function PatientsScreen({ onSelectPatient, autoOpenForm, onFormOp
   const avatarBg = isDark ? "bg-purple-900/40" : "bg-purple-100";
   const avatarText = isDark ? "text-purple-200" : "text-purple-800";
 
-  const load = useCallback(async () => {
-    setError("");
-    const { data, error } = await supabase
-      .from("patients")
-      .select("*")
-      .order("last_name");
-    if (error) setError(error.message);
-    else setPatients((data as Patient[]) ?? []);
-  }, []);
+const load = useCallback(async () => {
+  setError("");
 
+  // Patients
+  const { data, error } = await supabase
+    .from("patients")
+    .select("*")
+    .order("last_name");
+  if (error) setError(error.message);
+  else setPatients((data as Patient[]) ?? []);
+
+  // Sessions for notifications
+  const start = new Date();
+  start.setDate(start.getDate() - 7);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date();
+  end.setDate(end.getDate() + 7);
+  end.setHours(23, 59, 59, 999);
+
+  const s = await supabase
+    .from("sessions")
+    .select("*, patients(first_name, last_name)")
+    .gte("session_date", start.toISOString())
+    .lte("session_date", end.toISOString());
+
+  if (!s.error) setSessions((s.data as Session[]) ?? []);
+}, []);
+  
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -64,13 +89,6 @@ export default function PatientsScreen({ onSelectPatient, autoOpenForm, onFormOp
     })();
   }, [load]);
 
-  useEffect(() => {
-  if (autoOpenForm) {
-    setShowAddModal(true);
-    onFormOpened?.();
-  }
-}, [autoOpenForm, onFormOpened]);
-
   async function onRefresh() {
     setRefreshing(true);
     await load();
@@ -78,14 +96,16 @@ export default function PatientsScreen({ onSelectPatient, autoOpenForm, onFormOp
   }
 
   const filtered = patients.filter((p) =>
-    `${p.first_name} ${p.last_name}`.toLowerCase().includes(search.toLowerCase()),
+    `${p.first_name} ${p.last_name}`
+      .toLowerCase()
+      .includes(search.toLowerCase()),
   );
 
   if (loading) {
     return (
       <View className={`flex-1 items-center justify-center ${bg}`}>
         <ActivityIndicator size="large" color="#7c3aed" />
-        <StatusBar style={isDark ? "light" : "dark"} />
+        <StatusBar style="light" />
       </View>
     );
   }
@@ -94,28 +114,48 @@ export default function PatientsScreen({ onSelectPatient, autoOpenForm, onFormOp
     <View className={`flex-1 ${bg}`}>
       <StatusBar style={isDark ? "light" : "dark"} />
 
-      <View className={`border-b px-5 py-4 ${headerBorder} ${headerBg}`}>
-        <View className="flex-row items-start justify-between">
-          <View className="flex-1">
-            <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
-              Directory
-            </Text>
-            <Text className={`mt-1 text-2xl font-extrabold tracking-tight ${headingText}`}>
-              All patients
-            </Text>
-            <Text className={`mt-1 text-xs ${bodyText}`}>
-              {patients.length} patient{patients.length === 1 ? "" : "s"} on record
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => setShowAddModal(true)}
-            className="mt-1 flex-row items-center gap-1 rounded-2xl bg-purple-700 px-4 py-2.5"
-          >
-            <Feather name="plus" size={16} color="#ffffff" />
-            <Text className="text-xs font-bold text-white">Add</Text>
-          </Pressable>
-        </View>
+<View className="rounded-b-[40px] bg-purple-800 pb-8 pt-14">
+  {/* Top row */}
+  <View className="flex-row items-center justify-between px-5">
+    <ProfileMenu />
+
+    <View className="flex-1 flex-row items-center justify-center gap-2">
+      <View className="h-6 w-6 items-center justify-center rounded-md bg-white">
+        <Text className="text-xs font-extrabold text-purple-800">D</Text>
       </View>
+      <Text className="text-lg font-extrabold tracking-tight text-white">
+        Patients
+      </Text>
+    </View>
+
+    <HeaderActions
+      sessions={sessions}
+      onSelectPatient={(id) => onSelectPatient(id)}
+    />
+  </View>
+
+  {/* Stats row */}
+  <View className="mt-6 flex-row items-center gap-4 px-5">
+    <View className="flex-1">
+      <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-200">
+        Directory
+      </Text>
+      <Text className="mt-1 text-2xl font-extrabold text-white">
+        All patients
+      </Text>
+      <Text className="mt-1 text-xs text-purple-200">
+        {patients.length} patient{patients.length === 1 ? "" : "s"} on record
+      </Text>
+    </View>
+    <Pressable
+      onPress={() => setShowAddModal(true)}
+      className="flex-row items-center gap-1 rounded-2xl bg-white/15 px-4 py-2.5"
+    >
+      <Feather name="plus" size={16} color="#ffffff" />
+      <Text className="text-xs font-bold text-white">Add</Text>
+    </Pressable>
+  </View>
+</View>
 
       <ScrollView
         className="flex-1"
@@ -130,11 +170,10 @@ export default function PatientsScreen({ onSelectPatient, autoOpenForm, onFormOp
         keyboardShouldPersistTaps="handled"
       >
         <View className="px-5 pt-4">
-          {/* Search */}
           <View
             className={`mb-4 flex-row items-center gap-2 rounded-2xl border px-4 py-2 ${inputBorder} ${inputBg}`}
           >
-            <Feather name="search" size={18} color={isDark ? "#94a3b8" : "#94a3b8"} />
+            <Feather name="search" size={18} color="#94a3b8" />
             <TextInput
               value={search}
               onChangeText={setSearch}
@@ -157,7 +196,10 @@ export default function PatientsScreen({ onSelectPatient, autoOpenForm, onFormOp
             </View>
           ) : null}
 
-          <View className={`overflow-hidden rounded-2xl border ${cardBorder} ${cardBg}`} style={cardShadow}>
+          <View
+            className={`overflow-hidden rounded-2xl border ${cardBorder} ${cardBg}`}
+            style={cardShadow}
+          >
             {filtered.map((p, idx) => (
               <Pressable
                 key={p.id}
@@ -166,7 +208,9 @@ export default function PatientsScreen({ onSelectPatient, autoOpenForm, onFormOp
                   idx !== filtered.length - 1 ? `border-b ${rowBorder}` : ""
                 }`}
               >
-                <View className={`h-11 w-11 items-center justify-center rounded-full ${avatarBg}`}>
+                <View
+                  className={`h-11 w-11 items-center justify-center rounded-full ${avatarBg}`}
+                >
                   <Text className={`text-xs font-extrabold ${avatarText}`}>
                     {p.first_name.charAt(0)}
                     {p.last_name.charAt(0)}
@@ -190,7 +234,9 @@ export default function PatientsScreen({ onSelectPatient, autoOpenForm, onFormOp
 
             {filtered.length === 0 && (
               <View className="px-5 py-10">
-                <Text className={`text-center text-sm font-semibold ${headingText}`}>
+                <Text
+                  className={`text-center text-sm font-semibold ${headingText}`}
+                >
                   No patients found
                 </Text>
                 <Text className={`mt-1 text-center text-sm ${bodyText}`}>
@@ -201,6 +247,16 @@ export default function PatientsScreen({ onSelectPatient, autoOpenForm, onFormOp
           </View>
         </View>
       </ScrollView>
+
+      {/* Bottom nav */}
+      <BottomNav
+        active="patients"
+        onNavigate={(tab) => {
+          if (tab === "home") onNavigateHome();
+          if (tab === "schedule") onOpenSchedule();
+        }}
+        onAdd={() => setShowAddModal(true)}
+      />
 
       <PatientFormModal
         visible={showAddModal}
