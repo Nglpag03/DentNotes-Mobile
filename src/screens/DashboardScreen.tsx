@@ -17,6 +17,9 @@ import type { Patient, Session } from "../types";
 import { cardShadow, statusColors } from "../lib/theme";
 import BottomNav from "../components/BottomNav";
 import DrawerMenu from "../components/DrawerMenu";
+import NotificationsPanel from "../components/NotificationsPanel";
+import WeeklyBarChart from "../components/WeeklyBarChart";
+import { DashboardSkeleton } from "../components/Skeleton";
 
 interface Props {
   onViewAllPatients: () => void;
@@ -35,6 +38,7 @@ export default function DashboardScreen({
   const [upcoming, setUpcoming] = useState<Session[]>([]);
   const [error, setError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const firstName = session?.user.user_metadata?.first_name || "Doctor";
   const lastName = session?.user.user_metadata?.last_name || "";
@@ -72,16 +76,23 @@ export default function DashboardScreen({
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - 13);
+    weekStart.setHours(0, 0, 0, 0);
+
     const s = await supabase
       .from("sessions")
       .select("*, patients(first_name, last_name)")
       .neq("status", "COMPLETED")
       .gte("session_date", startOfDay.toISOString())
       .lte("session_date", endOfDay.toISOString())
+      .gte("session_date", weekStart.toISOString())
       .order("session_date", { ascending: true });
 
     if (!s.error) setUpcoming((s.data as Session[]) ?? []);
   }, []);
+
+  const [weekSessions, setWeekSessions] = useState<Session[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -97,14 +108,14 @@ export default function DashboardScreen({
     setRefreshing(false);
   }
 
-  if (loading) {
-    return (
-      <View className={`flex-1 items-center justify-center ${bg}`}>
-        <ActivityIndicator size="large" color="#7c3aed" />
-        <StatusBar style="light" />
-      </View>
-    );
-  }
+    if (loading) {
+      return (
+        <>
+          <StatusBar style="light" />
+          <DashboardSkeleton />
+        </>
+      );
+    }
 
   const recentPatients = patients.slice(0, 5);
 
@@ -155,7 +166,10 @@ export default function DashboardScreen({
                 />
               </Pressable>
 
-              <Pressable className="relative h-11 w-11 items-center justify-center rounded-full bg-white/10">
+              <Pressable
+                onPress={() => setNotificationsOpen(true)}
+                className="relative h-11 w-11 items-center justify-center rounded-full bg-white/10"
+              >
                 <Feather name="bell" size={20} color="#ffffff" />
                 {upcoming.length > 0 && (
                   <View className="absolute -right-1 -top-1 h-5 w-5 items-center justify-center rounded-full bg-white">
@@ -221,6 +235,11 @@ export default function DashboardScreen({
             <Text className={`mt-1 text-[10px] ${bodyText}`}>On record</Text>
           </View>
         </View>
+
+        {/* Weekly Bar Chart */}
+        <View className="mt-6 px-5">
+          <WeeklyBarChart sessions={weekSessions} />
+        </View>        
 
         {/* Today's Schedule */}
         <View className="mt-8 px-5">
@@ -419,6 +438,17 @@ export default function DashboardScreen({
         onAdd={onViewAllPatients}
       />
 
+      <NotificationsPanel
+        visible={notificationsOpen}
+        sessions={upcoming}
+        onClose={() => setNotificationsOpen(false)}
+        onSelectPatient={() => {
+          setNotificationsOpen(false);
+          onViewAllPatients();
+        }}
+        onOpenSchedule={onOpenSchedule}
+      />
+        
       <DrawerMenu
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
