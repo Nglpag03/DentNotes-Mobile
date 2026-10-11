@@ -35,7 +35,8 @@
           "backgroundColor": "#faf8fc"
         }
       ],
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-font"
     ],
     "extra": {
       "eas": {
