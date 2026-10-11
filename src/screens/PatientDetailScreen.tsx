@@ -19,6 +19,7 @@ import { cardShadow, statusColors } from "../lib/theme";
 import SessionFormModal from "./SessionFormModal";
 import AiHelper from "../components/AiHelper";
 import { PatientDetailSkeleton } from "../components/Skeleton";
+import { downloadPatientProfilePdf } from "../lib/pdf";
 
 interface Props {
   patientId: string;
@@ -54,7 +55,7 @@ export default function PatientDetailScreen({ patientId, onBack }: Props) {
   const pillText = isDark ? "text-purple-200" : "text-purple-800";
   const chipBg = isDark ? "bg-[#252033]" : "bg-purple-50";
   const labelText = isDark ? "text-slate-500" : "text-slate-400";
-
+  const [downloading, setDownloading] = useState(false);
   const load = useCallback(async () => {
     setError("");
 
@@ -111,6 +112,22 @@ export default function PatientDetailScreen({ patientId, onBack }: Props) {
     }
     setUpdatingId(null);
   }
+
+async function handleDownload() {
+  if (!patient) return;
+  setDownloading(true);
+  try {
+    await downloadPatientProfilePdf(patient, sessions);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    // Don't show an error for the known Android share bug
+    if (!message.includes("shareAsync has been rejected")) {
+      Alert.alert("Couldn't generate PDF", message);
+    }
+  } finally {
+    setDownloading(false);
+  }
+}
 
   async function deleteSession(sessionId: string) {
     const confirmed = await new Promise<boolean>((resolve) => {
@@ -204,16 +221,30 @@ if (loading) {
               </Text>
             </View>
 
-            <Pressable
-              onPress={toggleTheme}
-              className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
-            >
-              <Feather
-                name={isDark ? "sun" : "moon"}
-                size={20}
-                color="#ffffff"
-              />
-            </Pressable>
+<View className="flex-row items-center gap-2">
+  <Pressable
+    onPress={handleDownload}
+    disabled={downloading}
+    className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
+  >
+    {downloading ? (
+      <ActivityIndicator size="small" color="#ffffff" />
+    ) : (
+      <Feather name="download" size={20} color="#ffffff" />
+    )}
+  </Pressable>
+
+  <Pressable
+    onPress={toggleTheme}
+    className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
+  >
+    <Feather
+      name={isDark ? "sun" : "moon"}
+      size={20}
+      color="#ffffff"
+    />
+  </Pressable>
+</View>
           </View>
 
           {/* Identity */}
