@@ -34,6 +34,7 @@ interface Props {
   onOpenSchedule: () => void;
   onOpenSearch: () => void;
   onSelectPatient: (id: string) => void;
+  onOpenNotes: () => void;
 }
 
 export default function DashboardScreen({
@@ -41,6 +42,7 @@ export default function DashboardScreen({
   onOpenSchedule,
   onOpenSearch,
   onSelectPatient,
+  onOpenNotes
 }: Props) {
   const { session, signOut } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -189,7 +191,7 @@ const load = useCallback(async () => {
         }
       >
         {/* Hero Header */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-10 pt-14">
+        <View className="rounded-b-[40px] bg-purple-800 pb-10 pt-5">
           {/* Top row */}
 <View className="flex-row items-center justify-between px-5">
   <ProfileMenu />
@@ -469,6 +471,7 @@ const load = useCallback(async () => {
         onNavigate={(tab) => {
           if (tab === "schedule") onOpenSchedule();
           if (tab === "patients") onViewAllPatients();
+          if (tab === "notes") onOpenNotes();
         }}
         onAdd={() => setShowPatientForm(true)}
       />

@@ -18,6 +18,7 @@ import type { Patient, Session, SessionStatus } from "../types";
 import { cardShadow, statusColors } from "../lib/theme";
 import SessionFormModal from "./SessionFormModal";
 import AiHelper from "../components/AiHelper";
+import { PatientDetailSkeleton } from "../components/Skeleton";
 
 interface Props {
   patientId: string;
@@ -132,17 +133,14 @@ export default function PatientDetailScreen({ patientId, onBack }: Props) {
     else await load();
   }
 
-  // ─────────────────────────────────────────────
-  // Loading state
-  // ─────────────────────────────────────────────
-  if (loading) {
-    return (
-      <View className={`flex-1 items-center justify-center ${bg}`}>
-        <ActivityIndicator size="large" color="#7c3aed" />
-        <StatusBar style="light" />
-      </View>
-    );
-  }
+if (loading) {
+  return (
+    <>
+      <StatusBar style="light" />
+      <PatientDetailSkeleton />
+    </>
+  );
+}
 
   if (!patient) {
     return (
@@ -187,7 +185,7 @@ export default function PatientDetailScreen({ patientId, onBack }: Props) {
         }
       >
         {/* ───── Hero header ───── */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-14">
+        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-5">
           {/* Top row */}
           <View className="flex-row items-center justify-between px-5">
             <Pressable

@@ -12,16 +12,19 @@ import ScheduleScreen from "./src/screens/ScheduleScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import { ThemeProvider } from "./src/context/ThemeContext";
 import SearchScreen from "./src/screens/SearchScreen";
+import NotesScreen from "./src/screens/NotesScreen";
 
 type Screen =
   | { name: "dashboard" }
   | { name: "patients" }
   | { name: "schedule" }
   | { name: "search" } 
+  | { name: "notes" }
   | { name: "patient-from-dashboard"; id: string }
   | { name: "patient-from-patients"; id: string }
   | { name: "patient-from-schedule"; id: string }
-  | { name: "patient-from-search"; id: string };
+  | { name: "patient-from-search"; id: string }
+  | { name: "patient-from-notes"; id: string };
 
 function Root() {
   const { session, loading, onboardingSeen, markOnboardingSeen } = useAuth();
@@ -68,6 +71,26 @@ function Root() {
     );
   }
 
+  if (screen.name === "notes") {
+  return (
+    <NotesScreen
+      onSelectPatient={(id) => setScreen({ name: "patient-from-notes", id })}
+      onNavigateHome={() => setScreen({ name: "dashboard" })}
+      onOpenSchedule={() => setScreen({ name: "schedule" })}
+      onOpenPatients={() => setScreen({ name: "patients" })}
+    />
+  );
+}
+
+if (screen.name === "patient-from-notes") {
+  return (
+    <PatientDetailScreen
+      patientId={screen.id}
+      onBack={() => setScreen({ name: "notes" })}
+    />
+  );
+}
+
   if (screen.name === "search") {
   return (
     <SearchScreen
@@ -95,6 +118,7 @@ if (screen.name === "schedule") {
       }
       onNavigateHome={() => setScreen({ name: "dashboard" })}
       onOpenPatients={() => setScreen({ name: "patients" })}
+      onOpenNotes={() => setScreen({ name: "notes" })}
     />
   );
 }
@@ -107,6 +131,7 @@ if (screen.name === "patients") {
       }
       onNavigateHome={() => setScreen({ name: "dashboard" })}
       onOpenSchedule={() => setScreen({ name: "schedule" })}
+      onOpenNotes={() => setScreen({ name: "notes" })}
     />
   );
 }
@@ -119,9 +144,14 @@ if (screen.name === "patients") {
       onSelectPatient={(id) =>
       setScreen({ name: "patient-from-dashboard", id })
     }
+      onOpenNotes={() => setScreen({ name: "notes" })}
     />
   );
 }
+
+
+
+
 
 export default function App() {
   return (

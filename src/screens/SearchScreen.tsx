@@ -14,14 +14,21 @@ import { supabase } from "../lib/supabase";
 import { useTheme } from "../context/ThemeContext";
 import type { Patient, Session } from "../types";
 import { cardShadow, statusColors } from "../lib/theme";
+import { Skeleton } from "../components/Skeleton";
 
 interface Props {
   onBack: () => void;
   onSelectPatient: (id: string) => void;
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  PLANNED: "Upcoming",
+  "IN PROGRESS": "In Progress",
+  COMPLETED: "Done",
+};
+
 export default function SearchScreen({ onBack, onSelectPatient }: Props) {
-  const { isDark } = useTheme();
+  const { isDark, toggleTheme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -33,8 +40,8 @@ export default function SearchScreen({ onBack, onSelectPatient }: Props) {
   const headingText = isDark ? "text-white" : "text-slate-950";
   const bodyText = isDark ? "text-slate-400" : "text-slate-500";
   const rowBorder = isDark ? "border-slate-800" : "border-slate-100";
-  const inputBg = isDark ? "bg-[#1a1525]" : "bg-white";
-  const inputBorder = isDark ? "border-purple-900/40" : "border-slate-200";
+  const pillBg = isDark ? "bg-purple-950" : "bg-purple-100";
+  const pillText = isDark ? "text-purple-200" : "text-purple-800";
 
   const load = useCallback(async () => {
     const p = await supabase.from("patients").select("*").order("last_name");
@@ -84,70 +91,107 @@ export default function SearchScreen({ onBack, onSelectPatient }: Props) {
 
   return (
     <View className={`flex-1 ${bg}`}>
-      <StatusBar style={isDark ? "light" : "dark"} />
+      <StatusBar style="light" />
 
-      {/* Header */}
-      <View className={`border-b px-5 pt-14 pb-4 ${cardBorder}`}>
-        <View className="mb-4 flex-row items-center gap-3">
-          <Pressable
-            onPress={onBack}
-            className={`h-10 w-10 items-center justify-center rounded-full border ${cardBorder} ${cardBg}`}
-          >
-            <Feather
-              name="arrow-left"
-              size={20}
-              color={isDark ? "#ffffff" : "#6d28d9"}
-            />
-          </Pressable>
-          <Text className={`flex-1 text-center text-base font-bold ${headingText}`}>
-            Search
-          </Text>
-          <View className="w-10" />
-        </View>
-
-        {/* Search input */}
-        <View
-          className={`flex-row items-center gap-2 rounded-2xl border px-4 ${inputBg} ${inputBorder}`}
-        >
-          <Feather name="search" size={18} color="#94a3b8" />
-          <TextInput
-            autoFocus
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search patients, treatments, notes..."
-            placeholderTextColor="#94a3b8"
-            autoCapitalize="none"
-            autoCorrect={false}
-            className={`flex-1 py-3 text-sm ${headingText}`}
-          />
-          {query ? (
-            <Pressable onPress={() => setQuery("")}>
-              <Feather name="x" size={16} color="#94a3b8" />
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
-
-      {/* Results */}
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 60 }}
         keyboardShouldPersistTaps="handled"
       >
-        {loading ? (
-          <View className="items-center py-20">
-            <ActivityIndicator size="large" color="#7c3aed" />
+        {/* ───── Hero header ───── */}
+        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-5">
+          {/* Top row */}
+          <View className="flex-row items-center px-5">
+            <View className="w-24">
+              <Pressable
+                onPress={onBack}
+                className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
+              >
+                <Feather name="arrow-left" size={20} color="#ffffff" />
+              </Pressable>
+            </View>
+
+            <View className="flex-1 flex-row items-center justify-center gap-2">
+              <View className="h-6 w-6 items-center justify-center rounded-md bg-white">
+                <Text className="text-xs font-extrabold text-purple-800">D</Text>
+              </View>
+              <Text className="text-lg font-extrabold tracking-tight text-white">
+                Search
+              </Text>
+            </View>
+
+            <View className="w-24 items-end">
+              <Pressable
+                onPress={toggleTheme}
+                className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
+              >
+                <Feather
+                  name={isDark ? "sun" : "moon"}
+                  size={20}
+                  color="#ffffff"
+                />
+              </Pressable>
+            </View>
           </View>
-        ) : !q ? (
+
+          {/* Search input inside the hero */}
+          <View className="mt-6 px-5">
+            <View className="flex-row items-center gap-3 rounded-2xl bg-white/15 px-4 py-3.5">
+              <Feather name="search" size={18} color="#ffffff" />
+              <TextInput
+                autoFocus
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search patients, treatments, notes..."
+                placeholderTextColor="#d8b4fe"
+                autoCapitalize="none"
+                autoCorrect={false}
+                className="flex-1 text-sm text-white"
+              />
+              {query ? (
+                <Pressable
+                  onPress={() => setQuery("")}
+                  className="h-6 w-6 items-center justify-center rounded-full bg-white/20"
+                >
+                  <Feather name="x" size={14} color="#ffffff" />
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        </View>
+
+        {/* ───── Results ───── */}
+ {loading ? (
+  <View className="px-5 pt-6">
+    <View className="mb-3 flex-row items-center gap-2">
+      <Skeleton width={70} height={12} rounded={6} />
+      <Skeleton width={28} height={20} rounded={10} />
+    </View>
+    <View className="gap-3">
+      {[0, 1, 2].map((i) => (
+        <View
+          key={i}
+          className={`flex-row items-center gap-3 rounded-2xl border p-4 ${cardBorder} ${cardBg}`}
+        >
+          <Skeleton width={44} height={44} rounded={22} />
+          <View className="flex-1 gap-2">
+            <Skeleton width="55%" height={14} rounded={6} />
+            <Skeleton width="75%" height={12} rounded={6} />
+          </View>
+        </View>
+      ))}
+    </View>
+  </View>
+) : !q ? (
           <View className="items-center px-8 py-16">
             <View
-              className={`h-16 w-16 items-center justify-center rounded-3xl ${
+              className={`h-20 w-20 items-center justify-center rounded-3xl ${
                 isDark ? "bg-purple-950" : "bg-purple-100"
               }`}
             >
-              <Feather name="search" size={28} color="#7c3aed" />
+              <Feather name="search" size={32} color="#7c3aed" />
             </View>
-            <Text className={`mt-4 text-base font-bold ${headingText}`}>
+            <Text className={`mt-5 text-lg font-extrabold ${headingText}`}>
               Search your records
             </Text>
             <Text className={`mt-2 text-center text-sm ${bodyText}`}>
@@ -158,40 +202,42 @@ export default function SearchScreen({ onBack, onSelectPatient }: Props) {
         ) : !hasResults ? (
           <View className="items-center px-8 py-16">
             <View
-              className={`h-16 w-16 items-center justify-center rounded-3xl ${
+              className={`h-20 w-20 items-center justify-center rounded-3xl ${
                 isDark ? "bg-purple-950" : "bg-purple-100"
               }`}
             >
-              <Feather name="x" size={28} color="#7c3aed" />
+              <Feather name="x" size={32} color="#7c3aed" />
             </View>
-            <Text className={`mt-4 text-base font-bold ${headingText}`}>
-              No results for "{query}"
+            <Text className={`mt-5 text-lg font-extrabold ${headingText}`}>
+              No results
             </Text>
             <Text className={`mt-2 text-center text-sm ${bodyText}`}>
-              Try a different name or keyword.
+              Nothing matches "{query}". Try a different keyword.
             </Text>
           </View>
         ) : (
-          <View className="px-5 pt-4">
-            {/* Patients */}
+          <View className="px-5 pt-6">
+            {/* Patients section */}
             {matchedPatients.length > 0 && (
               <View className="mb-6">
-                <Text className="mb-3 text-[10px] font-bold uppercase tracking-widest text-purple-600">
-                  Patients · {matchedPatients.length}
-                </Text>
-                <View
-                  className={`overflow-hidden rounded-2xl border ${cardBorder} ${cardBg}`}
-                  style={cardShadow}
-                >
-                  {matchedPatients.map((p, idx) => (
+                <View className="mb-3 flex-row items-center gap-2">
+                  <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
+                    Patients
+                  </Text>
+                  <View className={`rounded-full px-2 py-0.5 ${pillBg}`}>
+                    <Text className={`text-[10px] font-bold ${pillText}`}>
+                      {matchedPatients.length}
+                    </Text>
+                  </View>
+                </View>
+
+                <View className="gap-3">
+                  {matchedPatients.map((p) => (
                     <Pressable
                       key={p.id}
                       onPress={() => onSelectPatient(p.id!)}
-                      className={`flex-row items-center gap-3 p-4 ${
-                        idx !== matchedPatients.length - 1
-                          ? `border-b ${rowBorder}`
-                          : ""
-                      }`}
+                      className={`flex-row items-center gap-3 rounded-2xl border p-4 ${cardBorder} ${cardBg}`}
+                      style={cardShadow}
                     >
                       <View
                         className={`h-11 w-11 items-center justify-center rounded-full ${
@@ -208,10 +254,16 @@ export default function SearchScreen({ onBack, onSelectPatient }: Props) {
                         </Text>
                       </View>
                       <View className="flex-1">
-                        <Text className={`text-sm font-bold ${headingText}`}>
+                        <Text
+                          className={`text-sm font-extrabold ${headingText}`}
+                          numberOfLines={1}
+                        >
                           {p.first_name} {p.last_name}
                         </Text>
-                        <Text className={`mt-0.5 text-xs ${bodyText}`}>
+                        <Text
+                          className={`mt-0.5 text-xs ${bodyText}`}
+                          numberOfLines={1}
+                        >
                           {p.condition || "No condition recorded"}
                         </Text>
                       </View>
@@ -226,65 +278,88 @@ export default function SearchScreen({ onBack, onSelectPatient }: Props) {
               </View>
             )}
 
-            {/* Sessions */}
+            {/* Sessions section */}
             {matchedSessions.length > 0 && (
               <View className="mb-6">
-                <Text className="mb-3 text-[10px] font-bold uppercase tracking-widest text-purple-600">
-                  Sessions · {matchedSessions.length}
-                </Text>
+                <View className="mb-3 flex-row items-center gap-2">
+                  <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
+                    Sessions
+                  </Text>
+                  <View className={`rounded-full px-2 py-0.5 ${pillBg}`}>
+                    <Text className={`text-[10px] font-bold ${pillText}`}>
+                      {matchedSessions.length}
+                    </Text>
+                  </View>
+                </View>
+
                 <View className="gap-3">
                   {matchedSessions.map((s) => (
                     <Pressable
                       key={s.id}
                       onPress={() => onSelectPatient(s.patient_id)}
-                      className={`overflow-hidden rounded-2xl border ${cardBorder} ${cardBg}`}
+                      className={`overflow-hidden rounded-2xl border p-4 ${cardBorder} ${cardBg}`}
                       style={cardShadow}
                     >
-                      <View className="p-4">
-                        <View className="flex-row items-start gap-3">
-                          <View className={`h-12 w-12 items-center justify-center rounded-2xl ${
+                      <View className="flex-row items-start gap-3">
+                        <View
+                          className={`h-12 w-12 items-center justify-center rounded-xl ${
                             isDark ? "bg-purple-900/40" : "bg-purple-100"
-                          }`}>
-                            <Text className={`text-sm font-extrabold ${
-                              isDark ? "text-purple-200" : "text-purple-900"
-                            }`}>
-                              {format(parseISO(s.session_date), "d")}
-                            </Text>
-                            <Text className={`text-[9px] font-bold uppercase ${
-                              isDark ? "text-purple-200" : "text-purple-900"
-                            }`}>
-                              {format(parseISO(s.session_date), "MMM")}
-                            </Text>
-                          </View>
-                          <View className="flex-1">
-                            <Text className={`text-sm font-bold ${headingText}`}>
-                              {s.title}
-                            </Text>
-                            <Text className={`mt-0.5 text-xs ${bodyText}`}>
-                              {s.patients?.first_name} {s.patients?.last_name}
-                            </Text>
-                          </View>
-                          <View
-                            style={{ backgroundColor: statusColors[s.status]?.bg }}
-                            className="rounded-full px-2.5 py-1"
-                          >
-                            <Text
-                              style={{ color: statusColors[s.status]?.text }}
-                              className="text-[9px] font-bold"
-                            >
-                              {s.status}
-                            </Text>
-                          </View>
-                        </View>
-                        {s.description ? (
+                          }`}
+                        >
                           <Text
-                            className={`mt-3 text-xs leading-5 ${bodyText}`}
-                            numberOfLines={2}
+                            className={`text-sm font-extrabold ${
+                              isDark ? "text-purple-200" : "text-purple-900"
+                            }`}
                           >
-                            {s.description}
+                            {format(parseISO(s.session_date), "d")}
                           </Text>
-                        ) : null}
+                          <Text
+                            className={`text-[9px] font-bold uppercase ${
+                              isDark ? "text-purple-200" : "text-purple-900"
+                            }`}
+                          >
+                            {format(parseISO(s.session_date), "MMM")}
+                          </Text>
+                        </View>
+
+                        <View className="flex-1">
+                          <Text
+                            className={`text-sm font-extrabold ${headingText}`}
+                            numberOfLines={1}
+                          >
+                            {s.title}
+                          </Text>
+                          <Text
+                            className={`mt-0.5 text-xs ${bodyText}`}
+                            numberOfLines={1}
+                          >
+                            {s.patients?.first_name} {s.patients?.last_name}
+                          </Text>
+                        </View>
+
+                        <View
+                          style={{
+                            backgroundColor: statusColors[s.status]?.bg,
+                          }}
+                          className="rounded-full px-2.5 py-1"
+                        >
+                          <Text
+                            style={{ color: statusColors[s.status]?.text }}
+                            className="text-[9px] font-bold"
+                          >
+                            {STATUS_LABEL[s.status] || s.status}
+                          </Text>
+                        </View>
                       </View>
+
+                      {s.description ? (
+                        <Text
+                          className={`mt-3 text-xs leading-5 ${bodyText}`}
+                          numberOfLines={2}
+                        >
+                          {s.description}
+                        </Text>
+                      ) : null}
                     </Pressable>
                   ))}
                 </View>

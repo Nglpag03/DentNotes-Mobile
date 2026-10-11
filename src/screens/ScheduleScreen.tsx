@@ -26,11 +26,13 @@ import BottomNav from "../components/BottomNav";
 import PatientFormModal from "./PatientFormModal";
 import ProfileMenu from "../components/ProfileMenu";
 import HeaderActions from "../components/HeaderActions";
+import { ScheduleSkeleton } from "../components/Skeleton";
 
 interface Props {
   onSelectPatient: (id: string) => void;
   onNavigateHome: () => void;
   onOpenPatients: () => void;
+  onOpenNotes: () => void;
 }
 
 const STATUS_LABEL: Record<SessionStatus, string> = {
@@ -43,6 +45,7 @@ export default function ScheduleScreen({
   onSelectPatient,
   onNavigateHome,
   onOpenPatients,
+  onOpenNotes
 }: Props) {
   const { isDark } = useTheme();
   const [loading, setLoading] = useState(true);
@@ -178,14 +181,14 @@ export default function ScheduleScreen({
     ? "Today"
     : format(selectedDay, "EEEE");
 
-  if (loading) {
-    return (
-      <View className={`flex-1 items-center justify-center ${bg}`}>
-        <ActivityIndicator size="large" color="#7c3aed" />
-        <StatusBar style="light" />
-      </View>
-    );
-  }
+if (loading) {
+  return (
+    <>
+      <StatusBar style="light" />
+      <ScheduleSkeleton />
+    </>
+  );
+}
 
   return (
     <View className={`flex-1 ${bg}`}>
@@ -203,7 +206,7 @@ export default function ScheduleScreen({
         }
       >
         {/* Hero header */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-14">
+        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-5">
           <View className="flex-row items-center justify-between px-5">
             {/* Left spacer (no back button — bottom nav is the navigator) */}
               <ProfileMenu />
@@ -466,6 +469,7 @@ export default function ScheduleScreen({
         onNavigate={(tab) => {
           if (tab === "home") onNavigateHome();
           if (tab === "patients") onOpenPatients();
+          if (tab === "notes") onOpenNotes();
         }}
         onAdd={() => setShowPatientForm(true)}
       />

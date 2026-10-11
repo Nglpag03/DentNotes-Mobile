@@ -19,17 +19,20 @@ import BottomNav from "../components/BottomNav";
 import ProfileMenu from "../components/ProfileMenu";
 import HeaderActions from "../components/HeaderActions";
 import type { Session } from "../types";
+import { ListSkeleton } from "../components/Skeleton";
 
 interface Props {
   onSelectPatient: (id: string) => void;
   onNavigateHome: () => void;
   onOpenSchedule: () => void;
+  onOpenNotes: () => void;
 }
 
 export default function PatientsScreen({
   onSelectPatient,
   onNavigateHome,
   onOpenSchedule,
+  onOpenNotes
 }: Props) {
   const { isDark } = useTheme();
   const [loading, setLoading] = useState(true);
@@ -101,20 +104,20 @@ const load = useCallback(async () => {
       .includes(search.toLowerCase()),
   );
 
-  if (loading) {
-    return (
-      <View className={`flex-1 items-center justify-center ${bg}`}>
-        <ActivityIndicator size="large" color="#7c3aed" />
-        <StatusBar style="light" />
-      </View>
-    );
-  }
+if (loading) {
+  return (
+    <>
+      <StatusBar style="light" />
+      <ListSkeleton />
+    </>
+  );
+}
 
   return (
     <View className={`flex-1 ${bg}`}>
       <StatusBar style={isDark ? "light" : "dark"} />
 
-<View className="rounded-b-[40px] bg-purple-800 pb-8 pt-14">
+<View className="rounded-b-[40px] bg-purple-800 pb-8 pt-5">
   {/* Top row */}
   <View className="flex-row items-center justify-between px-5">
     <ProfileMenu />
@@ -254,6 +257,7 @@ const load = useCallback(async () => {
         onNavigate={(tab) => {
           if (tab === "home") onNavigateHome();
           if (tab === "schedule") onOpenSchedule();
+          if (tab === "notes") onOpenNotes();
         }}
         onAdd={() => setShowAddModal(true)}
       />
