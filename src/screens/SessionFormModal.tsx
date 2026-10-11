@@ -29,7 +29,7 @@ const STATUSES: SessionStatus[] = ["PLANNED", "IN PROGRESS", "COMPLETED"];
 export default function SessionFormModal({
   visible,
   patientId,
-  session: editingSession,  // 👈 rename to avoid clashing with auth `session`
+  session: editingSession,  
   onClose,
   onSaved,
 }: Props) {
@@ -52,6 +52,7 @@ export default function SessionFormModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
+  const [room, setRoom] = useState(editingSession?.room ?? "");
 
   function reset() {
     setTitle("");
@@ -59,6 +60,7 @@ export default function SessionFormModal({
     setSessionDate(new Date().toISOString().slice(0, 10));
     setStatus("PLANNED");
     setNextSteps("");
+    setRoom("");
     setError("");
     setBusy(false);
     setActiveTemplate(null);
@@ -105,6 +107,7 @@ export default function SessionFormModal({
       session_date: isoDate,
       status,
       next_steps: nextSteps.trim() || null,
+      room: room.trim() || null,
       user_id: authSession?.user.id,
     };
 
@@ -255,6 +258,19 @@ export default function SessionFormModal({
                 placeholderTextColor="#94a3b8"
                 autoCapitalize="none"
                 autoCorrect={false}
+                className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900"
+              />
+
+              {/* Room */}
+              <Text className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                Room / Location
+              </Text>
+              <TextInput
+                value={room}
+                onChangeText={setRoom}
+                placeholder="e.g. Room 1, Chair 2, Suite A"
+                placeholderTextColor="#94a3b8"
+                autoCapitalize="words"
                 className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900"
               />
 

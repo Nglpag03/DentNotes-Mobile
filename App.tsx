@@ -11,17 +11,20 @@ import PatientDetailScreen from "./src/screens/PatientDetailScreen";
 import ScheduleScreen from "./src/screens/ScheduleScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import { ThemeProvider } from "./src/context/ThemeContext";
+import SearchScreen from "./src/screens/SearchScreen";
 
 type Screen =
   | { name: "dashboard" }
   | { name: "patients" }
   | { name: "schedule" }
+  | { name: "search" } 
   | { name: "patient-from-dashboard"; id: string }
   | { name: "patient-from-patients"; id: string }
-  | { name: "patient-from-schedule"; id: string };
+  | { name: "patient-from-schedule"; id: string }
+  | { name: "patient-from-search"; id: string };
 
 function Root() {
-  const { session, loading, onboardingSeen, markOnboardingSeen   } = useAuth();
+  const { session, loading, onboardingSeen, markOnboardingSeen } = useAuth();
   const [screen, setScreen] = useState<Screen>({ name: "dashboard" });
 
   if (loading) {
@@ -32,7 +35,8 @@ function Root() {
       </View>
     );
   }
-    if (!onboardingSeen && !session) {
+
+  if (!onboardingSeen && !session) {
     return <OnboardingScreen onFinish={markOnboardingSeen} />;
   }
 
@@ -64,6 +68,25 @@ function Root() {
     );
   }
 
+  if (screen.name === "search") {
+  return (
+    <SearchScreen
+      onBack={() => setScreen({ name: "dashboard" })}
+      onSelectPatient={(id) => setScreen({ name: "patient-from-search", id })}
+    />
+  );
+}
+
+if (screen.name === "patient-from-search") {
+  return (
+    <PatientDetailScreen
+      patientId={screen.id}
+      onBack={() => setScreen({ name: "search" })}
+    />
+  );
+}
+
+
   if (screen.name === "schedule") {
     return (
       <ScheduleScreen
@@ -89,6 +112,7 @@ function Root() {
     <DashboardScreen
       onViewAllPatients={() => setScreen({ name: "patients" })}
       onOpenSchedule={() => setScreen({ name: "schedule" })}
+      onOpenSearch={() => setScreen({ name: "search" })}
     />
   );
 }

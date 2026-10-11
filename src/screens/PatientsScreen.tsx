@@ -18,9 +18,11 @@ import PatientFormModal from "./PatientFormModal";
 
 interface Props {
   onSelectPatient: (id: string) => void;
+  autoOpenForm?: boolean;
+  onFormOpened?: () => void;
 }
 
-export default function PatientsScreen({ onSelectPatient }: Props) {
+export default function PatientsScreen({ onSelectPatient, autoOpenForm, onFormOpened }: Props) {
   const { isDark } = useTheme();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -61,6 +63,13 @@ export default function PatientsScreen({ onSelectPatient }: Props) {
       setLoading(false);
     })();
   }, [load]);
+
+  useEffect(() => {
+  if (autoOpenForm) {
+    setShowAddModal(true);
+    onFormOpened?.();
+  }
+}, [autoOpenForm, onFormOpened]);
 
   async function onRefresh() {
     setRefreshing(true);

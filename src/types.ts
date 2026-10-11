@@ -19,6 +19,7 @@ export interface Session {
   session_date: string;
   status: SessionStatus;
   next_steps?: string;
+  room?: string;
   user_id?: string;
   patients?: { first_name: string; last_name: string };
 }
@@ -33,4 +34,20 @@ export interface AuditEntry {
   after: Record<string, unknown> | null;
   changed_fields: string[] | null;
   created_at: string;
+}
+
+export interface Patient {
+  id?: string;
+  first_name: string;
+  last_name: string;
+  condition: string;
+  allergies?: string;
+  medications?: string;
+  phone?: string;
+  email?: string;
+  age?: number;
+  gender?: string;
+  notes?: string;
+  created_at?: string;
+  user_id?: string;
 }

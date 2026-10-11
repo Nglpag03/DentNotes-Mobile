@@ -20,15 +20,24 @@ import DrawerMenu from "../components/DrawerMenu";
 import NotificationsPanel from "../components/NotificationsPanel";
 import WeeklyBarChart from "../components/WeeklyBarChart";
 import { DashboardSkeleton } from "../components/Skeleton";
+import PatientFormModal from "./PatientFormModal";
+import SearchBar from "../components/SearchBar";
+
+
+import SessionDetailSheet from "../components/SessionDetailSheet";
+import SessionFormModal from "./SessionFormModal";
+import type { SessionStatus } from "../types";
 
 interface Props {
   onViewAllPatients: () => void;
   onOpenSchedule: () => void;
+  onOpenSearch: () => void;
 }
 
 export default function DashboardScreen({
   onViewAllPatients,
   onOpenSchedule,
+  onOpenSearch
 }: Props) {
   const { session, signOut } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -50,8 +59,10 @@ export default function DashboardScreen({
     hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   const todayLabel = format(new Date(), "EEEE, MMM d");
+  const [showPatientForm, setShowPatientForm] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [editingSession, setEditingSession] = useState<Session | null>(null);
 
-  // Theme-aware color tokens
   const bg = isDark ? "bg-[#0e0a1a]" : "bg-[#faf8fc]";
   const cardBg = isDark ? "bg-[#1a1525]" : "bg-white";
   const cardBorder = isDark ? "border-purple-900/40" : "border-purple-100";
@@ -107,6 +118,37 @@ export default function DashboardScreen({
     await load();
     setRefreshing(false);
   }
+
+  async function changeSessionStatus(sessionId: string, next: SessionStatus) {
+  const prev = upcoming.find((s) => s.id === sessionId)?.status;
+  if (!prev || prev === next) return;
+
+  // Optimistic update
+  setUpcoming((list) =>
+    list.map((s) => (s.id === sessionId ? { ...s, status: next } : s)),
+  );
+  setSelectedSession((s) =>
+    s && s.id === sessionId ? { ...s, status: next } : s,
+  );
+
+  const { error } = await supabase
+    .from("sessions")
+    .update({ status: next })
+    .eq("id", sessionId);
+
+  if (error) {
+    // Rollback
+    setUpcoming((list) =>
+      list.map((s) =>
+        s.id === sessionId ? { ...s, status: prev as SessionStatus } : s,
+      ),
+    );
+    setSelectedSession((s) =>
+      s && s.id === sessionId ? { ...s, status: prev as SessionStatus } : s,
+    );
+  }
+}
+
 
     if (loading) {
       return (
@@ -203,6 +245,11 @@ export default function DashboardScreen({
               </Text>
             </View>
           </View>
+
+                    {/* Search bar */}
+          <View className="mt-5 px-5">
+            <SearchBar onPress={onOpenSearch} />
+          </View>
         </View>
 
         {/* Stats */}
@@ -264,6 +311,7 @@ export default function DashboardScreen({
               {upcoming.map((s) => (
                 <Pressable
                   key={s.id}
+                  onPress={() => setSelectedSession(s)}
                   className={`flex-row items-center gap-3 rounded-2xl border p-4 ${cardBorder} ${cardBg}`}
                   style={cardShadow}
                 >
@@ -271,14 +319,12 @@ export default function DashboardScreen({
                     <Text className={`text-lg font-extrabold ${headingText}`}>
                       {format(parseISO(s.session_date), "HH:mm")}
                     </Text>
-                    <View className="mt-0.5 flex-row items-center gap-1">
-                      <Feather
-                        name="clock"
-                        size={10}
-                        color={isDark ? "#94a3b8" : "#94a3b8"}
-                      />
-                      <Text className={`text-[10px] ${bodyText}`}>Room 1</Text>
-                    </View>
+                    {s.room ? (
+                      <View className="mt-0.5 flex-row items-center gap-1">
+                        <Feather name="map-pin" size={10} color="#94a3b8" />
+                        <Text className={`text-[10px] ${bodyText}`}>{s.room}</Text>
+                      </View>
+                    ) : null}
                   </View>
 
                   <View
@@ -321,27 +367,27 @@ export default function DashboardScreen({
               ))}
             </View>
           ) : (
+          <View
+            className={`items-center rounded-2xl border border-dashed px-5 py-10 ${
+              isDark
+                ? "border-purple-900/60 bg-[#1a1525]"
+                : "border-purple-200 bg-white"
+            }`}
+          >
             <View
-              className={`items-center rounded-2xl border border-dashed px-5 py-10 ${
-                isDark
-                  ? "border-purple-900/60 bg-[#1a1525]"
-                  : "border-purple-200 bg-white"
+              className={`h-14 w-14 items-center justify-center rounded-2xl ${
+                isDark ? "bg-purple-950" : "bg-purple-50"
               }`}
             >
-              <View
-                className={`h-14 w-14 items-center justify-center rounded-2xl ${
-                  isDark ? "bg-purple-950" : "bg-purple-50"
-                }`}
-              >
-                <Text className="text-2xl">☕</Text>
-              </View>
-              <Text className={`mt-3 text-sm font-bold ${headingText}`}>
-                No check-ups scheduled today
-              </Text>
-              <Text className={`mt-1 text-xs ${bodyText}`}>
-                Enjoy the break.
-              </Text>
+              <Feather name="calendar" size={26} color="#7c3aed" />
             </View>
+            <Text className={`mt-3 text-sm font-bold ${headingText}`}>
+              No check-ups scheduled
+            </Text>
+            <Text className={`mt-1 text-xs ${bodyText}`}>
+              Nothing on the books for today.
+            </Text>
+          </View>
           )}
         </View>
 
@@ -435,7 +481,7 @@ export default function DashboardScreen({
           if (tab === "schedule") onOpenSchedule();
           if (tab === "patients") onViewAllPatients();
         }}
-        onAdd={onViewAllPatients}
+        onAdd={() => setShowPatientForm(true)}
       />
 
       <NotificationsPanel
@@ -457,6 +503,39 @@ export default function DashboardScreen({
         onNavigatePatients={onViewAllPatients}
         onSignOut={signOut}
       />
+
+      <PatientFormModal
+          visible={showPatientForm}
+          onClose={() => setShowPatientForm(false)}
+          onSaved={load}
+        />
+
+              <SessionDetailSheet
+        visible={!!selectedSession}
+        session={selectedSession}
+        onClose={() => setSelectedSession(null)}
+        onStatusChange={changeSessionStatus}
+        onOpenPatient={(patientId) => {
+          setSelectedSession(null);
+          onViewAllPatients();
+        }}
+        onEdit={(session) => {
+          setSelectedSession(null);
+          setEditingSession(session);
+        }}
+      />
+
+      <SessionFormModal
+        visible={!!editingSession}
+        patientId={editingSession?.patient_id ?? ""}
+        session={editingSession}
+        onClose={() => setEditingSession(null)}
+        onSaved={() => {
+          setEditingSession(null);
+          load();
+        }}
+      />
+
     </View>
   );
 }
