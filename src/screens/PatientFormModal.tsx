@@ -134,7 +134,7 @@ export default function PatientFormModal({ visible, onClose, onSaved }: Props) {
         {/* Blurred backdrop */}
         <Pressable onPress={handleClose} className="absolute inset-0">
           <BlurView
-            intensity={Platform.OS === "ios" ? 60 : 100}
+            intensity={Platform.OS === "ios" ? 60 : 30}
             tint="dark"
             className="flex-1"
           />

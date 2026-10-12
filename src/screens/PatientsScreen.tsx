@@ -20,7 +20,7 @@ import ProfileMenu from "../components/ProfileMenu";
 import HeaderActions from "../components/HeaderActions";
 import type { Session } from "../types";
 import { ListSkeleton } from "../components/Skeleton";
-
+import { useSafeAreaInsets } from "react-native-safe-area-context"; 
 interface Props {
   onSelectPatient: (id: string) => void;
   onNavigateHome: () => void;
@@ -61,7 +61,7 @@ export default function PatientsScreen({
   const inputText = isDark ? "text-white" : "text-slate-900";
   const avatarBg = isDark ? "bg-purple-900/40" : "bg-purple-100";
   const avatarText = isDark ? "text-purple-200" : "text-purple-800";
-
+  const insets = useSafeAreaInsets();
 const load = useCallback(async () => {
   setError("");
 
@@ -123,7 +123,8 @@ if (loading) {
     <View className={`flex-1 ${bg}`}>
       <StatusBar style={isDark ? "light" : "dark"} />
 
-<View className="rounded-b-[40px] bg-purple-800 pb-8 pt-8">
+    <View className="rounded-b-[40px] bg-purple-800 pb-10" 
+    style={{ paddingTop: insets.top + 12 }}>
   {/* Top row */}
   <View className="flex-row items-center justify-between px-5">
     <ProfileMenu onOpenProfile={onOpenProfile} onOpenAbout={onOpenAbout} onOpenSettings={onOpenSettings} />

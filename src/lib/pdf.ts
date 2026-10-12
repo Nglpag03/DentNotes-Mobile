@@ -3,7 +3,8 @@ import * as Sharing from "expo-sharing";
 import { format, parseISO } from "date-fns";
 import type { Patient, Session, SessionStatus } from "../types";
 import * as FileSystem from "expo-file-system/legacy";
-
+import * as MediaLibrary from "expo-media-library";
+import { Platform } from 'react-native';
 const STATUS_LABEL: Record<SessionStatus, string> = {
   PLANNED: "Upcoming",
   "IN PROGRESS": "In Progress",
@@ -281,7 +282,7 @@ export async function downloadPatientProfilePdf(
 ): Promise<void> {
   const html = buildPatientProfileHtml(patient, sessions);
 
-  // 1. Generate the PDF and get base64 directly (skip the read step)
+  // 1. Generate PDF with base64 (this works reliably)
   const { base64 } = await Print.printToFileAsync({
     html,
     base64: true,
@@ -291,18 +292,51 @@ export async function downloadPatientProfilePdf(
     throw new Error("Failed to generate PDF data.");
   }
 
-  // 2. Write the base64 to the app's document directory
   const filename = `${patient.first_name}_${patient.last_name}_DentNotes.pdf`.replace(
     /\s+/g,
     "_",
   );
-  const destUri = `${FileSystem.documentDirectory}${filename}`;
 
+  if (Platform.OS === "android") {
+    // 👇 ANDROID: Save directly to Downloads folder
+    const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync(
+      FileSystem.StorageAccessFramework.getUriForDirectoryInRoot("Download"),
+    );
+
+    if (!permissions.granted) {
+      // Fallback: save to app storage + share
+      const fileUri = `${FileSystem.documentDirectory}${filename}`;
+      await FileSystem.writeAsStringAsync(fileUri, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: "application/pdf",
+          dialogTitle: `Save ${patient.first_name}'s profile`,
+        });
+      }
+      return;
+    }
+
+    const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+      permissions.directoryUri,
+      filename,
+      "application/pdf",
+    );
+
+    await FileSystem.writeAsStringAsync(fileUri, base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    return;
+  }
+
+  // 👇 iOS: Write to document dir then show share sheet (standard iOS pattern)
+  const destUri = `${FileSystem.documentDirectory}${filename}`;
   await FileSystem.writeAsStringAsync(destUri, base64, {
     encoding: FileSystem.EncodingType.Base64,
   });
 
-  // 3. Share the accessible file
   if (await Sharing.isAvailableAsync()) {
     try {
       await Sharing.shareAsync(destUri, {
@@ -311,7 +345,6 @@ export async function downloadPatientProfilePdf(
         UTI: "com.adobe.pdf",
       });
     } catch (err) {
-      // Known Android share sheet race condition — safe to swallow
       const message = err instanceof Error ? err.message : String(err);
       const isKnownBug =
         message.includes("dispatchCancelPendingInputEvents") ||
@@ -319,7 +352,6 @@ export async function downloadPatientProfilePdf(
       if (!isKnownBug) throw err;
     }
   } else {
-    // Fallback: print directly
     await Print.printAsync({ uri: destUri });
   }
 }

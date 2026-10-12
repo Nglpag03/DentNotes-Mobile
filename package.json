@@ -24,6 +24,7 @@
     "expo-image-manipulator": "~57.0.21",
     "expo-image-picker": "~57.0.20",
     "expo-linear-gradient": "~57.0.2",
+    "expo-media-library": "~57.0.5",
     "expo-print": "~57.0.2",
     "expo-sharing": "~57.0.22",
     "expo-splash-screen": "~57.0.9",

@@ -20,6 +20,7 @@ import { cardShadow } from "../lib/theme";
 import { Image } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { pickAvatarImage, uploadAvatar, deleteOldAvatars } from "../lib/avatar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
   onBack: () => void;
@@ -50,7 +51,7 @@ export default function ProfileScreen({ onBack }: Props) {
   const inputBg = isDark ? "bg-[#252033]" : "bg-purple-50";
   const inputText = isDark ? "text-white" : "text-slate-900";
   const inputBorder = isDark ? "border-purple-900/40" : "border-purple-100";
-
+  const insets = useSafeAreaInsets();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
   meta.avatar_url ?? null,
   );
@@ -158,7 +159,8 @@ setAvatarUrl(publicUrl);
         keyboardShouldPersistTaps="handled"
       >
         {/* Hero header */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-14">
+        <View className="rounded-b-[40px] bg-purple-800 pb-10" 
+        style={{ paddingTop: insets.top + 12 }}>
           <View className="flex-row items-center px-5">
             <View className="w-24">
               <Pressable

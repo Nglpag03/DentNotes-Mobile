@@ -98,16 +98,16 @@ export default function SessionFormModal({
   const footerBorder = isDark ? "border-slate-800" : "border-slate-100";
   const cancelBg = isDark ? "bg-[#252033]" : "bg-purple-100";
   const cancelText = isDark ? "text-purple-200" : "text-purple-800";
+  
+function onDateChange(event: DateTimePickerEvent, date?: Date) {
+  if (Platform.OS === "android") setShowDatePicker(false);
+  if (event.type === "set" && date) setSelectedDate(date);
+}
 
-  function onDateChange(event: DateTimePickerEvent, date?: Date) {
-    setShowDatePicker(false);
-    if (event.type === "set" && date) setSelectedDate(date);
-  }
-
-  function onTimeChange(event: DateTimePickerEvent, time?: Date) {
-    setShowTimePicker(false);
-    if (event.type === "set" && time) setSelectedTime(time);
-  }
+function onTimeChange(event: DateTimePickerEvent, date?: Date) {
+  if (Platform.OS === "android") setShowTimePicker(false);
+  if (event.type === "set" && date) setSelectedTime(date);
+}
 
   function reset() {
     setTitle("");
@@ -210,7 +210,7 @@ export default function SessionFormModal({
         {/* Blurred backdrop */}
         <Pressable onPress={handleClose} className="absolute inset-0">
           <BlurView
-            intensity={Platform.OS === "ios" ? 60 : 100}
+            intensity={Platform.OS === "ios" ? 60 : 30}
             tint="dark"
             style={{ flex: 1 }}
           />
@@ -389,25 +389,41 @@ export default function SessionFormModal({
               </View>
 
               {/* Native pickers */}
-              {showDatePicker && (
-                <DateTimePicker
-                  value={selectedDate}
-                  mode="date"
-                  display={Platform.OS === "ios" ? "inline" : "default"}
-                  onChange={onDateChange}
-                  themeVariant={isDark ? "dark" : "light"}
-                />
-              )}
+{showDatePicker && (
+  <View className="mb-5">
+    <DateTimePicker
+      value={selectedDate}
+      mode="date"
+      display="inline"
+      onChange={onDateChange}
+      themeVariant={isDark ? "dark" : "light"}
+    />
+    <Pressable
+      onPress={() => setShowDatePicker(false)}
+      className="mt-2 items-center rounded-full bg-purple-800 py-3"
+    >
+      <Text className="text-sm font-bold text-white">Done</Text>
+    </Pressable>
+  </View>
+)}
 
-              {showTimePicker && (
-                <DateTimePicker
-                  value={selectedTime}
-                  mode="time"
-                  display={Platform.OS === "ios" ? "spinner" : "default"}
-                  onChange={onTimeChange}
-                  themeVariant={isDark ? "dark" : "light"}
-                />
-              )}
+{showTimePicker && (
+  <View className="mb-5">
+    <DateTimePicker
+      value={selectedTime}
+      mode="time"
+      display="inline"
+      onChange={onTimeChange}
+      themeVariant={isDark ? "dark" : "light"}
+    />
+      <Pressable
+        onPress={() => setShowTimePicker(false)}
+        className="mt-2 items-center rounded-full bg-purple-800 py-3"
+      >
+        <Text className="text-sm font-bold text-white">Done</Text>
+      </Pressable>
+  </View>
+)}
 
               {/* Room */}
               <Text className={`mb-2 text-xs font-bold ${labelText}`}>

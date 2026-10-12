@@ -4,6 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { useTheme } from "../context/ThemeContext";
 import { cardShadow } from "../lib/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
   onBack: () => void;
@@ -18,7 +19,7 @@ export default function AboutScreen({ onBack }: Props) {
   const headingText = isDark ? "text-white" : "text-slate-950";
   const bodyText = isDark ? "text-slate-400" : "text-slate-500";
   const rowBg = isDark ? "bg-[#252033]" : "bg-purple-50";
-
+  const insets = useSafeAreaInsets();
   const appVersion = Constants.expoConfig?.version ?? "1.0.0";
   const buildNumber =
     Constants.expoConfig?.android?.versionCode?.toString() ?? "—";
@@ -38,7 +39,8 @@ export default function AboutScreen({ onBack }: Props) {
         contentContainerStyle={{ paddingBottom: 60 }}
       >
         {/* Hero header */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-10 pt-14">
+        <View className="rounded-b-[40px] bg-purple-800 pb-10" 
+        style={{ paddingTop: insets.top + 12 }}>
           <View className="flex-row items-center px-5">
             <View className="w-24">
               <Pressable

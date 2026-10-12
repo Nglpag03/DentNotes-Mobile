@@ -49,7 +49,7 @@ export default function WeeklyBarChart({ sessions }: Props) {
   // Compute week-over-week change (previous 7 days vs these 7 days)
   const previousWeekCount = useMemo(() => {
     const start = subDays(startOfDay(new Date()), 13);
-    const end = subDays(startOfDay(new Date()), 7);
+    const end = subDays(startOfDay(new Date()), 6);
     return sessions.filter((s) => {
       try {
         const date = parseISO(s.session_date);

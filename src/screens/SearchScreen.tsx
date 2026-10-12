@@ -15,6 +15,7 @@ import { useTheme } from "../context/ThemeContext";
 import type { Patient, Session } from "../types";
 import { cardShadow, statusColors } from "../lib/theme";
 import { Skeleton } from "../components/Skeleton";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
   onBack: () => void;
@@ -42,7 +43,7 @@ export default function SearchScreen({ onBack, onSelectPatient }: Props) {
   const rowBorder = isDark ? "border-slate-800" : "border-slate-100";
   const pillBg = isDark ? "bg-purple-950" : "bg-purple-100";
   const pillText = isDark ? "text-purple-200" : "text-purple-800";
-
+  const insets = useSafeAreaInsets();
   const load = useCallback(async () => {
     const p = await supabase.from("patients").select("*").order("last_name");
     if (!p.error) setPatients((p.data as Patient[]) ?? []);
@@ -99,7 +100,7 @@ export default function SearchScreen({ onBack, onSelectPatient }: Props) {
         keyboardShouldPersistTaps="handled"
       >
         {/* ───── Hero header ───── */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-8">
+        <View className="rounded-b-[40px] bg-purple-800 pb-10" style={{ paddingTop: insets.top + 12 }}>
           {/* Top row */}
           <View className="flex-row items-center px-5">
             <View className="w-24">

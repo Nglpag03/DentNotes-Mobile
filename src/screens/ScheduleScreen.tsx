@@ -27,6 +27,7 @@ import PatientFormModal from "./PatientFormModal";
 import ProfileMenu from "../components/ProfileMenu";
 import HeaderActions from "../components/HeaderActions";
 import { ScheduleSkeleton } from "../components/Skeleton";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
   onSelectPatient: (id: string) => void;
@@ -69,7 +70,7 @@ export default function ScheduleScreen({
   const bodyText = isDark ? "text-slate-400" : "text-slate-500";
   const pillBg = isDark ? "bg-purple-950" : "bg-purple-100";
   const pillText = isDark ? "text-purple-200" : "text-purple-800";
-
+  const insets = useSafeAreaInsets();
   const days = useMemo(() => {
     const today = startOfDay(new Date());
     return Array.from({ length: 14 }, (_, i) => addDays(today, i - 7));
@@ -212,7 +213,8 @@ if (loading) {
         }
       >
         {/* Hero header */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-8">
+        <View className="rounded-b-[40px] bg-purple-800 pb-10" 
+        style={{ paddingTop: insets.top + 12 }}>
           <View className="flex-row items-center justify-between px-5">
             {/* Left spacer (no back button — bottom nav is the navigator) */}
               <ProfileMenu onOpenProfile={onOpenProfile} 

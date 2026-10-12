@@ -21,7 +21,7 @@ import WeeklyBarChart from "../components/WeeklyBarChart";
 import { DashboardSkeleton } from "../components/Skeleton";
 import PatientFormModal from "./PatientFormModal";
 import SearchBar from "../components/SearchBar";
-
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import SessionDetailSheet from "../components/SessionDetailSheet";
 import SessionFormModal from "./SessionFormModal";
@@ -58,7 +58,7 @@ export default function DashboardScreen({
   const [patients, setPatients] = useState<Patient[]>([]);
   const [upcoming, setUpcoming] = useState<Session[]>([]);
   const [error, setError] = useState("");
-
+  const insets = useSafeAreaInsets();
   const avatarUrl = session?.user.user_metadata?.avatar_url ?? null;
 
   const firstName = session?.user.user_metadata?.first_name || "Doctor";
@@ -83,6 +83,12 @@ export default function DashboardScreen({
   const pillBg = isDark ? "bg-purple-950" : "bg-purple-100";
   const pillText = isDark ? "text-purple-200" : "text-purple-800";
   const rowBorder = isDark ? "border-slate-800" : "border-slate-100";
+
+  function safeDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const d = new Date(value);   // more forgiving than parseISO
+  return isNaN(d.getTime()) ? null : d;
+}
 
 const load = useCallback(async () => {
   setError("");
@@ -199,7 +205,8 @@ const load = useCallback(async () => {
         }
       >
         {/* Hero Header */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-10 pt-8">
+        <View className="rounded-b-[40px] bg-purple-800 pb-10" 
+        style={{ paddingTop: insets.top + 12 }}>
           {/* Top row */}
         <View className="flex-row items-center justify-between px-5">
           <ProfileMenu 
@@ -318,7 +325,9 @@ const load = useCallback(async () => {
                 >
                   <View className="w-16">
                     <Text className={`text-lg font-extrabold ${headingText}`}>
-                      {format(parseISO(s.session_date), "HH:mm")}
+                      {safeDate(s.session_date)
+                        ? format(safeDate(s.session_date)!, "HH:mm")
+                        : "--:--"}
                     </Text>
                     {s.room ? (
                       <View className="mt-0.5 flex-row items-center gap-1">
@@ -445,7 +454,7 @@ const load = useCallback(async () => {
                       </Text>
                     </View>
                     <Text className={`text-[10px] ${bodyText}`}>
-                      {p.created_at ? format(new Date(p.created_at), "MMM d") : ""}
+                      {safeDate(p.created_at) ? format(safeDate(p.created_at)!, "MMM d") : ""}
                     </Text>
                     <Feather
                       name="chevron-right"
@@ -512,6 +521,7 @@ const load = useCallback(async () => {
       />
 
       <SessionFormModal
+        key={editingSession?.id ?? "new-session"}
         visible={!!editingSession}
         patientId={editingSession?.patient_id ?? ""}
         session={editingSession}

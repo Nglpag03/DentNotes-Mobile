@@ -27,7 +27,7 @@ import HeaderActions from "../components/HeaderActions";
 import BottomNav from "../components/BottomNav";
 import { NotesSkeleton } from "../components/Skeleton";
 import PatientFormModal from "./PatientFormModal";
-
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 interface Props {
   onSelectPatient: (id: string) => void;
   onNavigateHome: () => void;
@@ -80,6 +80,7 @@ export default function NotesScreen({
   const pillBg = isDark ? "bg-purple-950" : "bg-purple-100";
   const pillText = isDark ? "text-purple-200" : "text-purple-800";
   const [showPatientForm, setShowPatientForm] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const load = useCallback(async () => {
     setError("");
@@ -196,7 +197,8 @@ export default function NotesScreen({
         }
       >
         {/* Hero header */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-8">
+        <View className="rounded-b-[40px] bg-purple-800 pb-10"
+         style={{ paddingTop: insets.top + 12 }}>
           <View className="flex-row items-center px-5">
             <View className="w-24">
               <ProfileMenu onOpenProfile={onOpenProfile} 

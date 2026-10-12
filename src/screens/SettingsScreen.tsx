@@ -17,6 +17,7 @@ import {
   savePreferences,
   type Preferences,
 } from "../lib/preferences";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
   onBack: () => void;
@@ -47,7 +48,7 @@ export default function SettingsScreen({ onBack }: Props) {
   const bodyText = isDark ? "text-slate-400" : "text-slate-500";
   const labelText = isDark ? "text-slate-500" : "text-slate-400";
   const rowBg = isDark ? "bg-[#252033]" : "bg-purple-50";
-
+  const insets = useSafeAreaInsets();
   useEffect(() => {
     (async () => {
       const loaded = await loadPreferences();
@@ -104,7 +105,8 @@ export default function SettingsScreen({ onBack }: Props) {
         contentContainerStyle={{ paddingBottom: 60 }}
       >
         {/* Hero */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-14">
+        <View className="rounded-b-[40px] bg-purple-800 pb-10" 
+        style={{ paddingTop: insets.top + 12 }}>
           <View className="flex-row items-center px-5">
             <View className="w-24">
               <Pressable

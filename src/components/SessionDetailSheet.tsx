@@ -13,6 +13,7 @@ import { format, parseISO } from "date-fns";
 import { useTheme } from "../context/ThemeContext";
 import type { Session, SessionStatus } from "../types";
 import { statusColors } from "../lib/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
@@ -42,6 +43,7 @@ export default function SessionDetailSheet({
   onEdit,
 }: Props) {
   const { isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   useEffect(() => {
@@ -53,7 +55,7 @@ export default function SessionDetailSheet({
   }, [visible, slideAnim]);
 
   if (!session) return null;
-
+  
   const sheetBg = isDark ? "bg-[#1a1525]" : "bg-white";
   const cardBg = isDark ? "bg-[#0e0a1a]" : "bg-slate-50";
   const cardBorder = isDark ? "border-slate-800" : "border-slate-100";
@@ -67,8 +69,11 @@ export default function SessionDetailSheet({
     session.patients?.last_name ?? ""
   }`.trim();
 
-  const timeStr = format(parseISO(session.session_date), "h:mm a");
-  const dayStr = format(parseISO(session.session_date), "EEEE, MMM d");
+const sessionDate = session.session_date ? new Date(session.session_date) : null;
+const validDate = sessionDate && !isNaN(sessionDate.getTime()) ? sessionDate : null;
+
+const timeStr = validDate ? format(validDate, "h:mm a") : "--:--";
+const dayStr = validDate ? format(validDate, "EEEE, MMM d") : "Unknown date";
 
   return (
     <Modal
@@ -237,7 +242,7 @@ export default function SessionDetailSheet({
           </View>
 
           {/* Bottom safe area */}
-          <View style={{ height: 40 }} />
+          <View style={{ height: insets.bottom + 16 }} />
         </Animated.View>
       </View>
     </Modal>

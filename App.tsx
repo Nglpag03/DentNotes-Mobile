@@ -180,8 +180,6 @@ if (screen.name === "patients") {
 
 
 
-
-
 export default function App() {
   return (
     <SafeAreaProvider>

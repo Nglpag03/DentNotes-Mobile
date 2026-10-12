@@ -20,6 +20,8 @@ import SessionFormModal from "./SessionFormModal";
 import AiHelper from "../components/AiHelper";
 import { PatientDetailSkeleton } from "../components/Skeleton";
 import { downloadPatientProfilePdf } from "../lib/pdf";
+import { Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
   patientId: string;
@@ -45,7 +47,7 @@ export default function PatientDetailScreen({ patientId, onBack }: Props) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [showAi, setShowAi] = useState(false);
-
+  const insets = useSafeAreaInsets();
   const bg = isDark ? "bg-[#0e0a1a]" : "bg-[#faf8fc]";
   const cardBg = isDark ? "bg-[#1a1525]" : "bg-white";
   const cardBorder = isDark ? "border-purple-900/40" : "border-purple-100";
@@ -118,9 +120,14 @@ async function handleDownload() {
   setDownloading(true);
   try {
     await downloadPatientProfilePdf(patient, sessions);
+    Alert.alert(
+      "PDF saved",
+      Platform.OS === "android"
+        ? "The file was saved to your Downloads folder."
+        : "Choose where to save the file.",
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    // Don't show an error for the known Android share bug
     if (!message.includes("shareAsync has been rejected")) {
       Alert.alert("Couldn't generate PDF", message);
     }
@@ -202,7 +209,8 @@ if (loading) {
         }
       >
         {/* ───── Hero header ───── */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-8">
+        <View className="rounded-b-[40px] bg-purple-800 pb-10" 
+        style={{ paddingTop: insets.top + 12 }}>
           {/* Top row */}
           <View className="flex-row items-center justify-between px-5">
             <Pressable
