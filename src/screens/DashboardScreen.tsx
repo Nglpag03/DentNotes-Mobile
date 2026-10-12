@@ -35,6 +35,8 @@ interface Props {
   onOpenSearch: () => void;
   onSelectPatient: (id: string) => void;
   onOpenNotes: () => void;
+  onOpenProfile: () => void;
+  onOpenAbout: () => void;
 }
 
 export default function DashboardScreen({
@@ -42,7 +44,9 @@ export default function DashboardScreen({
   onOpenSchedule,
   onOpenSearch,
   onSelectPatient,
-  onOpenNotes
+  onOpenNotes,
+  onOpenProfile,
+  onOpenAbout,
 }: Props) {
   const { session, signOut } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -193,24 +197,26 @@ const load = useCallback(async () => {
         {/* Hero Header */}
         <View className="rounded-b-[40px] bg-purple-800 pb-10 pt-8">
           {/* Top row */}
-<View className="flex-row items-center justify-between px-5">
-  <ProfileMenu />
+        <View className="flex-row items-center justify-between px-5">
+          <ProfileMenu 
+          onOpenProfile={onOpenProfile}
+          onOpenAbout={onOpenAbout} />
 
-  <View className="flex-1 flex-row items-center justify-center gap-2">
-    <View className="h-6 w-6 items-center justify-center rounded-md bg-white">
-      <Text className="text-xs font-extrabold text-purple-800">D</Text>
-    </View>
-    <Text className="text-lg font-extrabold tracking-tight text-white">
-      DentNotes
-    </Text>
-  </View>
+          <View className="flex-1 flex-row items-center justify-center gap-2">
+            <View className="h-6 w-6 items-center justify-center rounded-md bg-white">
+              <Text className="text-xs font-extrabold text-purple-800">D</Text>
+            </View>
+            <Text className="text-lg font-extrabold tracking-tight text-white">
+              DentNotes
+            </Text>
+          </View>
 
-  <HeaderActions
-    sessions={upcoming}
-    onOpenSchedule={onOpenSchedule}
-    onSelectPatient={onSelectPatient} 
-  />
-</View>
+          <HeaderActions
+            sessions={upcoming}
+            onOpenSchedule={onOpenSchedule}
+            onSelectPatient={onSelectPatient} 
+          />
+        </View>
 
           {/* Greeting row */}
           <View className="mt-6 flex-row items-center gap-4 px-5">

@@ -13,6 +13,8 @@ import OnboardingScreen from "./src/screens/OnboardingScreen";
 import { ThemeProvider } from "./src/context/ThemeContext";
 import SearchScreen from "./src/screens/SearchScreen";
 import NotesScreen from "./src/screens/NotesScreen";
+import ProfileScreen from "./src/screens/ProfileScreen";
+import AboutScreen from "./src/screens/AboutScreen";
 
 type Screen =
   | { name: "dashboard" }
@@ -20,6 +22,8 @@ type Screen =
   | { name: "schedule" }
   | { name: "search" } 
   | { name: "notes" }
+  | { name: "profile" }
+  | { name: "about" } 
   | { name: "patient-from-dashboard"; id: string }
   | { name: "patient-from-patients"; id: string }
   | { name: "patient-from-schedule"; id: string }
@@ -43,8 +47,15 @@ function Root() {
     return <OnboardingScreen onFinish={markOnboardingSeen} />;
   }
 
-  if (!session) return <LoginScreen />;
+   if (!session) return <LoginScreen />;
 
+      if (screen.name === "profile") {
+      return <ProfileScreen onBack={() => setScreen({ name: "dashboard" })} />;
+    }
+
+    if (screen.name === "about") {
+      return <AboutScreen onBack={() => setScreen({ name: "dashboard" })} />;
+    }
   // Patient detail — from any of the three origins
   if (screen.name === "patient-from-dashboard") {
     return (
@@ -78,6 +89,8 @@ function Root() {
       onNavigateHome={() => setScreen({ name: "dashboard" })}
       onOpenSchedule={() => setScreen({ name: "schedule" })}
       onOpenPatients={() => setScreen({ name: "patients" })}
+      onOpenProfile={() => setScreen({ name: "profile" })} 
+      onOpenAbout={() => setScreen({ name: "about" })}
     />
   );
 }
@@ -119,6 +132,8 @@ if (screen.name === "schedule") {
       onNavigateHome={() => setScreen({ name: "dashboard" })}
       onOpenPatients={() => setScreen({ name: "patients" })}
       onOpenNotes={() => setScreen({ name: "notes" })}
+      onOpenProfile={() => setScreen({ name: "profile" })} 
+      onOpenAbout={() => setScreen({ name: "about" })}
     />
   );
 }
@@ -132,6 +147,8 @@ if (screen.name === "patients") {
       onNavigateHome={() => setScreen({ name: "dashboard" })}
       onOpenSchedule={() => setScreen({ name: "schedule" })}
       onOpenNotes={() => setScreen({ name: "notes" })}
+      onOpenProfile={() => setScreen({ name: "profile" })} 
+      onOpenAbout={() => setScreen({ name: "about" })}
     />
   );
 }
@@ -145,6 +162,8 @@ if (screen.name === "patients") {
       setScreen({ name: "patient-from-dashboard", id })
     }
       onOpenNotes={() => setScreen({ name: "notes" })}
+      onOpenProfile={() => setScreen({ name: "profile" })}
+      onOpenAbout={() => setScreen({ name: "about" })}
     />
   );
 }

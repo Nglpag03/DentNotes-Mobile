@@ -26,13 +26,17 @@ interface Props {
   onNavigateHome: () => void;
   onOpenSchedule: () => void;
   onOpenNotes: () => void;
+  onOpenProfile: () => void;
+  onOpenAbout: () => void;
 }
 
 export default function PatientsScreen({
   onSelectPatient,
   onNavigateHome,
   onOpenSchedule,
-  onOpenNotes
+  onOpenNotes,
+  onOpenProfile,
+  onOpenAbout,
 }: Props) {
   const { isDark } = useTheme();
   const [loading, setLoading] = useState(true);
@@ -120,7 +124,7 @@ if (loading) {
 <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-8">
   {/* Top row */}
   <View className="flex-row items-center justify-between px-5">
-    <ProfileMenu />
+    <ProfileMenu onOpenProfile={onOpenProfile} onOpenAbout={onOpenAbout} />
 
     <View className="flex-1 flex-row items-center justify-center gap-2">
       <View className="h-6 w-6 items-center justify-center rounded-md bg-white">

@@ -6,9 +6,11 @@ import { useTheme } from "../context/ThemeContext";
 
 interface Props {
   size?: number;
+  onOpenProfile?: () => void;
+  onOpenAbout?: () => void;
 }
 
-export default function ProfileMenu({ size = 44 }: Props) {
+export default function ProfileMenu({ size = 44, onOpenProfile, onOpenAbout, }: Props) {
   const { session, signOut } = useAuth();
   const { isDark } = useTheme();
   const [open, setOpen] = useState(false);
@@ -26,13 +28,13 @@ export default function ProfileMenu({ size = 44 }: Props) {
 
   return (
     <>
-      {/* Avatar button */}
+      {/* Menu button */}
       <Pressable
         onPress={() => setOpen(true)}
-        className="items-center justify-center rounded-full bg-white/20"
+        className="items-center justify-center rounded-full bg-white/10"
         style={{ height: size, width: size }}
       >
-        <Text className="text-xs font-extrabold text-white">{initials}</Text>
+        <Feather name="menu" size={22} color="#ffffff" />
       </Pressable>
 
       {/* Dropdown overlay */}
@@ -75,7 +77,8 @@ export default function ProfileMenu({ size = 44 }: Props) {
             <Pressable
               onPress={() => {
                 setOpen(false);
-                // Profile screen coming soon
+                    setOpen(false);
+                    onOpenProfile?.();
               }}
               className="flex-row items-center gap-3 px-4 py-3"
             >
@@ -105,6 +108,23 @@ export default function ProfileMenu({ size = 44 }: Props) {
                 Settings
               </Text>
             </Pressable>
+
+            <Pressable
+            onPress={() => {
+              setOpen(false);
+              onOpenAbout?.();
+            }}
+            className="flex-row items-center gap-3 px-4 py-3"
+          >
+            <Feather
+              name="info"
+              size={16}
+              color={isDark ? "#c4b5fd" : "#7c3aed"}
+            />
+            <Text className={`text-sm font-semibold ${headingText}`}>
+              About DentNotes
+            </Text>
+          </Pressable>
 
             <View className={`border-t ${menuBorder}`}>
               <Pressable
