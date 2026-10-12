@@ -15,6 +15,7 @@ import SearchScreen from "./src/screens/SearchScreen";
 import NotesScreen from "./src/screens/NotesScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import AboutScreen from "./src/screens/AboutScreen";
+import SettingsScreen from "./src/screens/SettingsScreen";
 
 type Screen =
   | { name: "dashboard" }
@@ -24,6 +25,7 @@ type Screen =
   | { name: "notes" }
   | { name: "profile" }
   | { name: "about" } 
+  | { name: "settings" }  
   | { name: "patient-from-dashboard"; id: string }
   | { name: "patient-from-patients"; id: string }
   | { name: "patient-from-schedule"; id: string }
@@ -56,6 +58,10 @@ function Root() {
     if (screen.name === "about") {
       return <AboutScreen onBack={() => setScreen({ name: "dashboard" })} />;
     }
+
+    if (screen.name === "settings") {
+  return <SettingsScreen onBack={() => setScreen({ name: "dashboard" })} />;
+}
   // Patient detail — from any of the three origins
   if (screen.name === "patient-from-dashboard") {
     return (
@@ -91,6 +97,7 @@ function Root() {
       onOpenPatients={() => setScreen({ name: "patients" })}
       onOpenProfile={() => setScreen({ name: "profile" })} 
       onOpenAbout={() => setScreen({ name: "about" })}
+      onOpenSettings={() => setScreen({ name: "settings" })} 
     />
   );
 }
@@ -134,6 +141,7 @@ if (screen.name === "schedule") {
       onOpenNotes={() => setScreen({ name: "notes" })}
       onOpenProfile={() => setScreen({ name: "profile" })} 
       onOpenAbout={() => setScreen({ name: "about" })}
+      onOpenSettings={() => setScreen({ name: "settings" })} 
     />
   );
 }
@@ -149,6 +157,7 @@ if (screen.name === "patients") {
       onOpenNotes={() => setScreen({ name: "notes" })}
       onOpenProfile={() => setScreen({ name: "profile" })} 
       onOpenAbout={() => setScreen({ name: "about" })}
+      onOpenSettings={() => setScreen({ name: "settings" })} 
     />
   );
 }
@@ -164,6 +173,7 @@ if (screen.name === "patients") {
       onOpenNotes={() => setScreen({ name: "notes" })}
       onOpenProfile={() => setScreen({ name: "profile" })}
       onOpenAbout={() => setScreen({ name: "about" })}
+      onOpenSettings={() => setScreen({ name: "settings" })} 
     />
   );
 }

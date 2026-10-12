@@ -37,6 +37,7 @@ interface Props {
   onOpenNotes: () => void;
   onOpenProfile: () => void;
   onOpenAbout: () => void;
+  onOpenSettings: () => void;
 }
 
 export default function DashboardScreen({
@@ -47,6 +48,7 @@ export default function DashboardScreen({
   onOpenNotes,
   onOpenProfile,
   onOpenAbout,
+  onOpenSettings,
 }: Props) {
   const { session, signOut } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -200,7 +202,8 @@ const load = useCallback(async () => {
         <View className="flex-row items-center justify-between px-5">
           <ProfileMenu 
           onOpenProfile={onOpenProfile}
-          onOpenAbout={onOpenAbout} />
+          onOpenAbout={onOpenAbout}
+          onOpenSettings={onOpenSettings} />
 
           <View className="flex-1 flex-row items-center justify-center gap-2">
             <View className="h-6 w-6 items-center justify-center rounded-md bg-white">

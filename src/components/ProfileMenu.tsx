@@ -8,9 +8,10 @@ interface Props {
   size?: number;
   onOpenProfile?: () => void;
   onOpenAbout?: () => void;
+  onOpenSettings?: () => void;
 }
 
-export default function ProfileMenu({ size = 44, onOpenProfile, onOpenAbout, }: Props) {
+export default function ProfileMenu({ size = 44, onOpenProfile, onOpenAbout, onOpenSettings,}: Props) {
   const { session, signOut } = useAuth();
   const { isDark } = useTheme();
   const [open, setOpen] = useState(false);
@@ -95,7 +96,7 @@ export default function ProfileMenu({ size = 44, onOpenProfile, onOpenAbout, }: 
             <Pressable
               onPress={() => {
                 setOpen(false);
-                // Settings screen coming soon
+                onOpenSettings?.();
               }}
               className="flex-row items-center gap-3 px-4 py-3"
             >

@@ -35,6 +35,7 @@ interface Props {
   onOpenPatients: () => void;
   onOpenProfile: () => void;
   onOpenAbout: () => void;
+  onOpenSettings: () => void;
 }
 
 type Filter = "today" | "week" | "month" | "all";
@@ -59,6 +60,7 @@ export default function NotesScreen({
   onOpenPatients,
   onOpenProfile,
   onOpenAbout,
+  onOpenSettings,
 }: Props) {
   const { isDark } = useTheme();
   const [loading, setLoading] = useState(true);
@@ -197,7 +199,9 @@ export default function NotesScreen({
         <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-8">
           <View className="flex-row items-center px-5">
             <View className="w-24">
-              <ProfileMenu onOpenProfile={onOpenProfile} onOpenAbout={onOpenAbout} />
+              <ProfileMenu onOpenProfile={onOpenProfile} 
+              onOpenAbout={onOpenAbout}
+               onOpenSettings={onOpenSettings} />
             </View>
 
             <View className="flex-1 flex-row items-center justify-center gap-2">

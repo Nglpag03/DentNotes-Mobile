@@ -35,6 +35,7 @@ interface Props {
   onOpenNotes: () => void;
   onOpenProfile: () => void;
   onOpenAbout: () => void;
+  onOpenSettings: () => void;
 }
 
 const STATUS_LABEL: Record<SessionStatus, string> = {
@@ -50,6 +51,7 @@ export default function ScheduleScreen({
   onOpenNotes,
   onOpenProfile,
   onOpenAbout,
+  onOpenSettings
 }: Props) {
   const { isDark } = useTheme();
   const [loading, setLoading] = useState(true);
@@ -213,7 +215,9 @@ if (loading) {
         <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-8">
           <View className="flex-row items-center justify-between px-5">
             {/* Left spacer (no back button — bottom nav is the navigator) */}
-              <ProfileMenu onOpenProfile={onOpenProfile} onOpenAbout={onOpenAbout} />
+              <ProfileMenu onOpenProfile={onOpenProfile} 
+              onOpenAbout={onOpenAbout}  
+              onOpenSettings={onOpenSettings} />
 
               <View className="flex-1 flex-row items-center justify-center gap-2">
                 <View className="h-6 w-6 items-center justify-center rounded-md bg-white">
