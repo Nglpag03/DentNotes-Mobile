@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import Avatar from "./Avatar";
 
 interface Props {
   size?: number;
@@ -26,6 +27,8 @@ export default function ProfileMenu({ size = 44, onOpenProfile, onOpenAbout, onO
   const menuBorder = isDark ? "border-slate-800" : "border-slate-100";
   const headingText = isDark ? "text-white" : "text-slate-900";
   const bodyText = isDark ? "text-slate-400" : "text-slate-500";
+
+  const avatarUrl = session?.user.user_metadata?.avatar_url ?? null;
 
   return (
     <>

@@ -17,6 +17,10 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { cardShadow } from "../lib/theme";
 
+import { Image } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { pickAvatarImage, uploadAvatar, deleteOldAvatars } from "../lib/avatar";
+
 interface Props {
   onBack: () => void;
 }
@@ -46,6 +50,11 @@ export default function ProfileScreen({ onBack }: Props) {
   const inputBg = isDark ? "bg-[#252033]" : "bg-purple-50";
   const inputText = isDark ? "text-white" : "text-slate-900";
   const inputBorder = isDark ? "border-purple-900/40" : "border-purple-100";
+
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(
+  meta.avatar_url ?? null,
+  );
+  const [uploading, setUploading] = useState(false);
 
   const isDirty =
     firstName.trim() !== (meta.first_name ?? "") ||
@@ -77,6 +86,42 @@ export default function ProfileScreen({ onBack }: Props) {
     setSavedAt(Date.now());
     setTimeout(() => setSavedAt(null), 2000);
   }
+
+  async function handlePickAvatar() {
+  try {
+    const uri = await pickAvatarImage();
+    if (!uri) return;
+
+    setUploading(true);
+    setError("");
+
+    const userId = session?.user.id;
+    if (!userId) throw new Error("Not signed in.");
+
+    const publicUrl = await uploadAvatar(userId, uri);
+
+const { error: updateError } = await supabase.auth.updateUser({
+  data: { avatar_url: publicUrl },
+});
+if (updateError) throw updateError;
+
+// 👇 Force the session to refresh so AuthContext re-renders
+await supabase.auth.refreshSession();
+
+setAvatarUrl(publicUrl);
+
+    setAvatarUrl(publicUrl);
+    setSavedAt(Date.now());
+    setTimeout(() => setSavedAt(null), 2000);
+
+    // Best-effort cleanup of old files
+    // deleteOldAvatars(userId, publicUrl);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Upload failed");
+  } finally {
+    setUploading(false);
+  }
+}
 
   async function handleResetPassword() {
     if (!email) return;
@@ -148,17 +193,64 @@ export default function ProfileScreen({ onBack }: Props) {
           </View>
 
           {/* Big avatar */}
-          <View className="mt-8 items-center">
-            <View className="h-28 w-28 items-center justify-center rounded-full bg-white/20 ring-4 ring-white/20">
-              <Text className="text-4xl font-extrabold text-white">
-                {initials}
-              </Text>
-            </View>
-            <Text className="mt-4 text-xl font-extrabold text-white">
-              Dr. {firstName} {lastName}
-            </Text>
-            <Text className="mt-1 text-xs text-purple-200">{email}</Text>
-          </View>
+<View className="mt-8 items-center">
+  <Pressable
+    onPress={handlePickAvatar}
+    disabled={uploading}
+    className="relative"
+  >
+    <View
+      className="h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-white/20"
+      style={{ borderWidth: 4, borderColor: "rgba(255,255,255,0.3)" }}
+    >
+ {uploading ? (
+  <ActivityIndicator color="#ffffff" />
+) : avatarUrl ? (
+  <Image
+    source={{ uri: avatarUrl, cache: "reload" }}
+    style={{ width: 112, height: 112 }}
+  />
+) : (
+  <Text className="text-4xl font-extrabold text-white">
+    {initials}
+  </Text>
+)}
+    </View>
+
+    {/* Camera badge */}
+    <View
+      className="absolute bottom-0 right-0 h-9 w-9 items-center justify-center rounded-full bg-white"
+      style={{
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 4,
+      }}
+    >
+      <Feather name="camera" size={16} color="#7c3aed" />
+    </View>
+  </Pressable>
+
+  <Text className="mt-4 text-xl font-extrabold text-white">
+    Dr. {firstName} {lastName}
+  </Text>
+  <Text className="mt-1 text-xs text-purple-200">{email}</Text>
+
+  <Pressable
+    onPress={handlePickAvatar}
+    disabled={uploading}
+    className="mt-3 rounded-full bg-white/15 px-4 py-2"
+  >
+    <Text className="text-xs font-bold text-white">
+      {uploading
+        ? "Uploading…"
+        : avatarUrl
+          ? "Change photo"
+          : "Add photo"}
+    </Text>
+  </Pressable>
+</View>
         </View>
 
         <View className="px-5 pt-6">

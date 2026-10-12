@@ -28,6 +28,7 @@ import SessionFormModal from "./SessionFormModal";
 import type { SessionStatus } from "../types";
 import ProfileMenu from "../components/ProfileMenu";
 import HeaderActions from "../components/HeaderActions";
+import Avatar from "../components/Avatar";
 
 interface Props {
   onViewAllPatients: () => void;
@@ -58,6 +59,7 @@ export default function DashboardScreen({
   const [upcoming, setUpcoming] = useState<Session[]>([]);
   const [error, setError] = useState("");
 
+  const avatarUrl = session?.user.user_metadata?.avatar_url ?? null;
 
   const firstName = session?.user.user_metadata?.first_name || "Doctor";
   const lastName = session?.user.user_metadata?.last_name || "";
@@ -223,11 +225,13 @@ const load = useCallback(async () => {
 
           {/* Greeting row */}
           <View className="mt-6 flex-row items-center gap-4 px-5">
-            <View className="h-16 w-16 items-center justify-center rounded-full bg-white/20 ring-4 ring-white/10">
-              <Text className="text-lg font-extrabold text-white">
-                {initials}
-              </Text>
-            </View>
+      <Avatar
+        url={avatarUrl}
+        initials={initials}
+        size={64}
+        ring
+        variant="onPurple"
+      />
 
             <View className="flex-1">
               <Text className="text-sm font-semibold text-purple-200">
