@@ -14,6 +14,7 @@ import { useTheme } from "../context/ThemeContext";
 import type { Session, SessionStatus } from "../types";
 import { statusColors } from "../lib/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import PhotoGallery from "./PhotoGallery";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
@@ -168,6 +169,14 @@ const dayStr = validDate ? format(validDate, "EEEE, MMM d") : "Unknown date";
               ) : null}
             </View>
           </View>
+
+              {/* Photos */}
+            <View className="px-6 pt-5">
+              <PhotoGallery
+                patientId={session.patient_id}
+                sessionId={session.id!}
+              />
+            </View>
 
           {/* Status control */}
           <View className="px-6 pt-5">

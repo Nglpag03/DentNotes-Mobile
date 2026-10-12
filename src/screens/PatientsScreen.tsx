@@ -55,7 +55,7 @@ export default function PatientsScreen({
   const cardBorder = isDark ? "border-purple-900/40" : "border-purple-100";
   const headingText = isDark ? "text-white" : "text-slate-950";
   const bodyText = isDark ? "text-slate-400" : "text-slate-500";
-  const rowBorder = isDark ? "border-slate-800" : "border-slate-100";
+
   const inputBg = isDark ? "bg-[#1a1525]" : "bg-white";
   const inputBorder = isDark ? "border-purple-900/40" : "border-slate-200";
   const inputText = isDark ? "text-white" : "text-slate-900";
@@ -206,55 +206,73 @@ if (loading) {
             </View>
           ) : null}
 
-          <View
-            className={`overflow-hidden rounded-2xl border ${cardBorder} ${cardBg}`}
-            style={cardShadow}
-          >
-            {filtered.map((p, idx) => (
-              <Pressable
-                key={p.id}
-                onPress={() => onSelectPatient(p.id!)}
-                className={`flex-row items-center gap-3 p-4 ${
-                  idx !== filtered.length - 1 ? `border-b ${rowBorder}` : ""
-                }`}
-              >
-                <View
-                  className={`h-11 w-11 items-center justify-center rounded-full ${avatarBg}`}
-                >
-                  <Text className={`text-xs font-extrabold ${avatarText}`}>
-                    {p.first_name.charAt(0)}
-                    {p.last_name.charAt(0)}
-                  </Text>
-                </View>
-                <View className="flex-1">
-                  <Text className={`text-sm font-bold ${headingText}`}>
-                    {p.first_name} {p.last_name}
-                  </Text>
-                  <Text className={`mt-1 text-xs ${bodyText}`}>
-                    {p.condition || "No condition recorded"}
-                  </Text>
-                </View>
-                <Feather
-                  name="chevron-right"
-                  size={16}
-                  color={isDark ? "#a78bfa" : "#c4b5fd"}
-                />
-              </Pressable>
-            ))}
+{filtered.length > 0 ? (
+  <View className="gap-3">
+    {filtered.map((p) => (
+      <Pressable
+        key={p.id}
+        onPress={() => onSelectPatient(p.id!)}
+        className={`flex-row items-center gap-4 rounded-2xl border p-4 ${cardBorder} ${cardBg}`}
+        style={cardShadow}
+      >
+        {/* Avatar */}
+        <View
+          className={`h-12 w-12 shrink-0 items-center justify-center rounded-full ${avatarBg}`}
+        >
+          <Text className={`text-sm font-extrabold ${avatarText}`}>
+            {p.first_name.charAt(0)}
+            {p.last_name.charAt(0)}
+          </Text>
+        </View>
 
-            {filtered.length === 0 && (
-              <View className="px-5 py-10">
-                <Text
-                  className={`text-center text-sm font-semibold ${headingText}`}
-                >
-                  No patients found
-                </Text>
-                <Text className={`mt-1 text-center text-sm ${bodyText}`}>
-                  Try another name.
-                </Text>
-              </View>
-            )}
-          </View>
+        {/* Name + condition */}
+        <View className="min-w-0 flex-1">
+          <Text
+            className={`text-base font-extrabold leading-tight ${headingText}`}
+            numberOfLines={1}
+          >
+            {p.first_name} {p.last_name}
+          </Text>
+          <Text
+            className={`mt-0.5 text-sm ${bodyText}`}
+            numberOfLines={1}
+          >
+            {p.condition || "No condition recorded"}
+          </Text>
+        </View>
+
+        {/* Chevron */}
+        <Feather
+          name="chevron-right"
+          size={18}
+          color={isDark ? "#a78bfa" : "#c4b5fd"}
+        />
+      </Pressable>
+    ))}
+  </View>
+) : (
+  <View
+    className={`items-center rounded-2xl border border-dashed px-5 py-14 ${
+      isDark
+        ? "border-purple-900/60 bg-[#1a1525]"
+        : "border-purple-200 bg-white"
+    }`}
+  >
+    <View
+      className={`h-16 w-16 items-center justify-center rounded-2xl ${
+        isDark ? "bg-purple-950" : "bg-purple-50"
+      }`}
+    >
+      <Feather name="users" size={28} color="#7c3aed" />
+    </View>
+    <Text className={`mt-4 text-base font-bold ${headingText}`}>
+      No patients found
+    </Text>
+    <Text className={`mt-1 text-center text-sm ${bodyText}`}>
+      {search ? "Try a different name." : "Tap + to add your first patient."}
+    </Text>
+  </View>
+)}
         </View>
       </ScrollView>
 

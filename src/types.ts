@@ -51,3 +51,13 @@ export interface Patient {
   created_at?: string;
   user_id?: string;
 }
+
+export interface SessionImage {
+  id: string;
+  patient_id: string;
+  session_id: string;
+  file_path: string;
+  kind: "xray" | "photo" | "document";
+  created_at?: string;
+  url?: string; 
+}

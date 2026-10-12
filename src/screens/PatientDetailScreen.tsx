@@ -22,6 +22,7 @@ import { PatientDetailSkeleton } from "../components/Skeleton";
 import { downloadPatientProfilePdf } from "../lib/pdf";
 import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import PhotoGallery from "../components/PhotoGallery";
 
 interface Props {
   patientId: string;
@@ -327,25 +328,25 @@ if (loading) {
           )}
 
           {/* Quick actions */}
-          <View className="mt-3 flex-row gap-2 px-5">
-            <Pressable
-              onPress={() => {
-                setEditingSession(null);
-                setShowAddModal(true);
-              }}
-              className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-white/15 py-3"
-            >
-              <Feather name="plus" size={16} color="#ffffff" />
-              <Text className="text-xs font-bold text-white">Add check-up</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setShowAi(!showAi)}
-              className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-white/15 py-3"
-            >
-              <Feather name="zap" size={16} color="#ffffff" />
-              <Text className="text-xs font-bold text-white">AI Helper</Text>
-            </Pressable>
-          </View>
+      <View className="mt-3 flex-row gap-2 px-5">
+        <Pressable
+          onPress={() => {
+            setEditingSession(null);
+            setShowAddModal(true);
+          }}
+          className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-white/15 py-3"
+        >
+          <Feather name="plus" size={16} color="#ffffff" />
+          <Text className="text-xs font-bold text-white">Add check-up</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setShowAi(!showAi)}
+          className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-white/15 py-3"
+        >
+          <Feather name="zap" size={16} color="#ffffff" />
+          <Text className="text-xs font-bold text-white">AI Helper</Text>
+        </Pressable>
+      </View>
         </View>
 
         <View className="px-5">
@@ -448,6 +449,22 @@ if (loading) {
               </View>
             ) : null}
           </View>
+
+                      {/* ───── Photos & X-rays ───── */}
+          <View
+            className={`mt-5 rounded-3xl border p-5 ${cardBorder} ${cardBg}`}
+            style={cardShadow}
+          >
+            <View className="mb-4 flex-row items-center gap-2">
+              <Feather name="camera" size={16} color="#7c3aed" />
+              <Text className={`text-sm font-bold ${headingText}`}>
+                Photos & X-rays
+              </Text>
+            </View>
+
+            <PhotoGallery patientId={patientId} allSessions readOnly />
+          </View>
+
 
           {/* ───── AI Helper (collapsible) ───── */}
           {showAi ? (

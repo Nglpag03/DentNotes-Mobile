@@ -254,7 +254,7 @@ export default function SearchScreen({ onBack, onSelectPatient }: Props) {
                           {p.last_name.charAt(0)}
                         </Text>
                       </View>
-                      <View className="flex-1">
+                      <View className="min-w-0 flex-1">
                         <Text
                           className={`text-sm font-extrabold ${headingText}`}
                           numberOfLines={1}
@@ -262,9 +262,7 @@ export default function SearchScreen({ onBack, onSelectPatient }: Props) {
                           {p.first_name} {p.last_name}
                         </Text>
                         <Text
-                          className={`mt-0.5 text-xs ${bodyText}`}
-                          numberOfLines={1}
-                        >
+                         className={`mt-0.5 text-sm ${bodyText}`} numberOfLines={1}>
                           {p.condition || "No condition recorded"}
                         </Text>
                       </View>

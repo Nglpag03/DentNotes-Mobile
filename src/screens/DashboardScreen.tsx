@@ -317,63 +317,75 @@ const load = useCallback(async () => {
           {upcoming.length > 0 ? (
             <View className="gap-3">
               {upcoming.map((s) => (
-                <Pressable
-                  key={s.id}
-                  onPress={() => setSelectedSession(s)}
-                  className={`flex-row items-center gap-3 rounded-2xl border p-4 ${cardBorder} ${cardBg}`}
-                  style={cardShadow}
-                >
-                  <View className="w-16">
-                    <Text className={`text-lg font-extrabold ${headingText}`}>
-                      {safeDate(s.session_date)
-                        ? format(safeDate(s.session_date)!, "HH:mm")
-                        : "--:--"}
-                    </Text>
-                    {s.room ? (
-                      <View className="mt-0.5 flex-row items-center gap-1">
-                        <Feather name="map-pin" size={10} color="#94a3b8" />
-                        <Text className={`text-[10px] ${bodyText}`}>{s.room}</Text>
-                      </View>
-                    ) : null}
-                  </View>
+          <Pressable
+            key={s.id}
+            onPress={() => setSelectedSession(s)}
+            className={`flex-row items-center gap-4 rounded-2xl border p-4 ${cardBorder} ${cardBg}`}
+            style={cardShadow}
+          >
+            {/* Time column */}
+            <View className="w-16 shrink-0">
+              <Text className={`text-xl font-extrabold leading-none ${headingText}`}>
+                {safeDate(s.session_date)
+                  ? format(safeDate(s.session_date)!, "HH:mm")
+                  : "--:--"}
+              </Text>
+              {s.room ? (
+                <View className="mt-1.5 flex-row items-center gap-1">
+                  <Feather name="clock" size={10} color="#94a3b8" />
+                  <Text className={`text-[10px] font-medium ${bodyText}`}>
+                    {s.room}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
 
-                  <View
-                    className="h-10 w-1 rounded-full"
-                    style={{
-                      backgroundColor:
-                        s.status === "COMPLETED"
-                          ? "#10b981"
-                          : s.status === "IN PROGRESS"
-                            ? "#7c3aed"
-                            : "#d8b4fe",
-                    }}
-                  />
+            {/* Accent bar */}
+            <View
+              className="h-12 w-[3px] shrink-0 rounded-full"
+              style={{
+                backgroundColor:
+                  s.status === "COMPLETED"
+                    ? "#10b981"
+                    : s.status === "IN PROGRESS"
+                      ? "#7c3aed"
+                      : "#d8b4fe",
+              }}
+            />
 
-                  <View className="flex-1">
-                    <Text className={`text-sm font-extrabold ${headingText}`}>
-                      {s.patients?.first_name} {s.patients?.last_name}
-                    </Text>
-                    <Text className={`mt-0.5 text-xs ${bodyText}`}>
-                      {s.title}
-                    </Text>
-                  </View>
+            {/* Patient + treatment */}
+            <View className="min-w-0 flex-1">
+              <Text
+                className={`text-base font-extrabold leading-tight ${headingText}`}
+                numberOfLines={1}
+              >
+                {s.patients?.first_name} {s.patients?.last_name}
+              </Text>
+              <Text
+                className={`mt-0.5 text-sm ${bodyText}`}
+                numberOfLines={1}
+              >
+                {s.title}
+              </Text>
+            </View>
 
-                  <View
-                    style={{ backgroundColor: statusColors[s.status]?.bg }}
-                    className="rounded-full px-3 py-1.5"
-                  >
-                    <Text
-                      style={{ color: statusColors[s.status]?.text }}
-                      className="text-[10px] font-bold"
-                    >
-                      {s.status === "PLANNED"
-                        ? "Upcoming"
-                        : s.status === "COMPLETED"
-                          ? "Done"
-                          : "In Progress"}
-                    </Text>
-                  </View>
-                </Pressable>
+            {/* Status pill */}
+            <View
+              style={{ backgroundColor: statusColors[s.status]?.bg }}
+              className="shrink-0 rounded-full px-3.5 py-1.5"
+            >
+              <Text
+                style={{ color: statusColors[s.status]?.text }}
+                className="text-[10px] font-bold"
+              >
+                {s.status === "PLANNED"
+                  ? "Upcoming"
+                  : s.status === "COMPLETED"
+                    ? "Done"
+                    : "In Progress"}
+              </Text>
+            </View>
+          </Pressable>
               ))}
             </View>
           ) : (
@@ -442,14 +454,14 @@ const load = useCallback(async () => {
                         {p.last_name.charAt(0)}
                       </Text>
                     </View>
-                    <View className="flex-1">
+                    <View className="min-w-0 flex-1">
                       <Text
-                        className={`text-sm font-extrabold ${headingText}`}
+                        className={`text-base font-extrabold leading-tight ${headingText}`}
                         numberOfLines={1}
                       >
                         {p.first_name} {p.last_name}
                       </Text>
-                      <Text className={`mt-0.5 text-xs ${bodyText}`} numberOfLines={1}>
+                      <Text className={`mt-0.5 text-sm ${bodyText}`} numberOfLines={1}>
                         {p.condition || "No condition recorded"}
                       </Text>
                     </View>
