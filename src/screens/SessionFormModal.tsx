@@ -12,16 +12,16 @@ import {
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { Feather } from "@expo/vector-icons";
+import { format, parseISO } from "date-fns";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import type { Session, SessionStatus } from "../types";
 import { SESSION_TEMPLATES } from "../lib/sessionTemplates";
 import { statusColors } from "../lib/theme";
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
-import { format, parseISO } from "date-fns";
 
 interface Props {
   visible: boolean;
@@ -63,21 +63,20 @@ export default function SessionFormModal({
   const [description, setDescription] = useState(
     editingSession?.description ?? "",
   );
-const [selectedDate, setSelectedDate] = useState<Date>(() => {
-  if (editingSession?.session_date) return parseISO(editingSession.session_date);
-  return new Date();
-});
-
-const [selectedTime, setSelectedTime] = useState<Date>(() => {
-  if (editingSession?.session_date) return parseISO(editingSession.session_date);
-  // Default to 9:00 AM
-  const d = new Date();
-  d.setHours(9, 0, 0, 0);
-  return d;
-});
-
-const [showDatePicker, setShowDatePicker] = useState(false);
-const [showTimePicker, setShowTimePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    if (editingSession?.session_date)
+      return parseISO(editingSession.session_date);
+    return new Date();
+  });
+  const [selectedTime, setSelectedTime] = useState<Date>(() => {
+    if (editingSession?.session_date)
+      return parseISO(editingSession.session_date);
+    const d = new Date();
+    d.setHours(9, 0, 0, 0);
+    return d;
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [status, setStatus] = useState<SessionStatus>(
     editingSession?.status ?? "PLANNED",
   );
@@ -95,11 +94,10 @@ const [showTimePicker, setShowTimePicker] = useState(false);
   const labelText = isDark ? "text-slate-400" : "text-slate-500";
   const chipBg = isDark ? "bg-[#252033]" : "bg-purple-100";
   const chipText = isDark ? "text-purple-200" : "text-purple-800";
-  const statusTrack = isDark ? "bg-[#0e0a1a]" : "bg-slate-100";
+  const statusTrack = isDark ? "bg-[#252033]" : "bg-purple-100";
   const footerBorder = isDark ? "border-slate-800" : "border-slate-100";
   const cancelBg = isDark ? "bg-[#252033]" : "bg-purple-100";
   const cancelText = isDark ? "text-purple-200" : "text-purple-800";
-  const footerBg = isDark ? "bg-[#1a1525]" : "bg-white";
 
   function onDateChange(event: DateTimePickerEvent, date?: Date) {
     setShowDatePicker(false);
@@ -136,16 +134,6 @@ const [showTimePicker, setShowTimePicker] = useState(false);
       setDescription("");
       setNextSteps("");
       return;
-    }
-
-    function onDateChange(event: DateTimePickerEvent, date?: Date) {
-      setShowDatePicker(false);
-      if (event.type === "set" && date) setSelectedDate(date);
-    }
-
-    function onTimeChange(event: DateTimePickerEvent, time?: Date) {
-      setShowTimePicker(false);
-      if (event.type === "set" && time) setSelectedTime(time);
     }
 
     setActiveTemplate(id);
@@ -219,7 +207,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
       onRequestClose={handleClose}
     >
       <View className="flex-1 justify-end">
-        {/* Blurred backdrop (tappable to close) */}
+        {/* Blurred backdrop */}
         <Pressable onPress={handleClose} className="absolute inset-0">
           <BlurView
             intensity={Platform.OS === "ios" ? 60 : 100}
@@ -230,18 +218,18 @@ const [showTimePicker, setShowTimePicker] = useState(false);
         </Pressable>
 
         {/* Sheet */}
-        <View className={`h-[92%] rounded-t-[32px] ${sheetBg}`}>
+        <View className={`h-[94%] rounded-t-[32px] ${sheetBg}`}>
           {/* Hero header */}
-          <View className="rounded-t-[32px] bg-purple-800 px-6 pb-16 pt-6">
+          <View className="rounded-t-[32px] bg-purple-800 px-6 pb-20 pt-8">
             <View className="flex-row items-start justify-between">
               <View className="flex-1">
-                <Text className="text-2xl font-extrabold text-white">
+                <Text className="text-3xl font-extrabold text-white">
                   {isEdit ? "Edit check-up" : "New check-up"}
                 </Text>
-                <Text className="mt-1 text-xs text-purple-200">
+                <Text className="mt-2 text-xs text-purple-200">
                   {isEdit
                     ? "Update this clinical note"
-                    : "Record a clinical note"}
+                    : "Record a clinical note in seconds"}
                 </Text>
               </View>
               <Pressable
@@ -254,32 +242,37 @@ const [showTimePicker, setShowTimePicker] = useState(false);
           </View>
 
           {/* Floating icon badge */}
-          <View className="-mt-10 items-center">
+          <View className="-mt-12 items-center">
             <View
-              className={`h-20 w-20 items-center justify-center rounded-full ${sheetBg}`}
+              className={`h-24 w-24 items-center justify-center rounded-full ${sheetBg}`}
               style={{
-                borderWidth: 4,
+                borderWidth: 5,
                 borderColor: isDark ? "#1a1525" : "#ffffff",
+                shadowColor: "#7c3aed",
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.15,
+                shadowRadius: 12,
+                elevation: 8,
               }}
             >
               <Feather
                 name={isEdit ? "edit-2" : "file-text"}
-                size={28}
+                size={32}
                 color="#7c3aed"
               />
             </View>
           </View>
 
-          {/* Body + Footer inside KeyboardAvoidingView */}
+          {/* Body + Footer */}
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             className="flex-1"
           >
             <ScrollView
               contentContainerStyle={{
-                padding: 24,
-                paddingTop: 16,
-                paddingBottom: 24,
+                paddingHorizontal: 24,
+                paddingTop: 8,
+                paddingBottom: 32,
               }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
@@ -292,14 +285,14 @@ const [showTimePicker, setShowTimePicker] = useState(false);
               ) : null}
 
               {/* Quick templates */}
-              <Text className={`mb-2 text-xs font-bold ${labelText}`}>
+              <Text className={`mb-3 text-xs font-bold ${labelText}`}>
                 Quick templates
               </Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
-                className="mb-2"
+                className="mb-3"
               >
                 {SESSION_TEMPLATES.map((t) => {
                   const active = activeTemplate === t.id;
@@ -324,7 +317,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                 })}
               </ScrollView>
               {activeTemplate ? (
-                <Text className="mb-4 text-[11px] text-purple-500">
+                <Text className="mb-5 text-[11px] text-purple-500">
                   Template applied — edit any field to customize.
                 </Text>
               ) : (
@@ -341,7 +334,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                 }}
                 placeholder="e.g. Routine cleaning"
                 placeholderTextColor="#94a3b8"
-                className={`mb-4 rounded-2xl border px-4 py-3.5 text-sm ${inputBg} ${inputText} ${inputBorder}`}
+                className={`mb-5 rounded-2xl border px-4 py-4 text-sm ${inputBg} ${inputText} ${inputBorder}`}
               />
 
               {/* Description */}
@@ -359,17 +352,18 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                className={`mb-4 min-h-[100] rounded-2xl border px-4 py-3.5 text-sm ${inputBg} ${inputText} ${inputBorder}`}
+                className={`mb-5 min-h-[110] rounded-2xl border px-4 py-4 text-sm ${inputBg} ${inputText} ${inputBorder}`}
               />
 
               {/* Date + Time row */}
-              <View className="mb-4 flex-row gap-3">
-                {/* Date picker */}
+              <View className="mb-5 flex-row gap-3">
                 <View className="flex-1">
-                  <Text className={`mb-2 text-xs font-bold ${labelText}`}>Date</Text>
+                  <Text className={`mb-2 text-xs font-bold ${labelText}`}>
+                    Date
+                  </Text>
                   <Pressable
                     onPress={() => setShowDatePicker(true)}
-                    className={`flex-row items-center gap-2 rounded-2xl border px-4 py-3.5 ${inputBg} ${inputBorder}`}
+                    className={`flex-row items-center gap-2 rounded-2xl border px-4 py-4 ${inputBg} ${inputBorder}`}
                   >
                     <Feather name="calendar" size={16} color="#7c3aed" />
                     <Text className={`flex-1 text-sm ${inputText}`}>
@@ -378,12 +372,13 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                   </Pressable>
                 </View>
 
-                {/* Time picker */}
                 <View className="flex-1">
-                  <Text className={`mb-2 text-xs font-bold ${labelText}`}>Time</Text>
+                  <Text className={`mb-2 text-xs font-bold ${labelText}`}>
+                    Time
+                  </Text>
                   <Pressable
                     onPress={() => setShowTimePicker(true)}
-                    className={`flex-row items-center gap-2 rounded-2xl border px-4 py-3.5 ${inputBg} ${inputBorder}`}
+                    className={`flex-row items-center gap-2 rounded-2xl border px-4 py-4 ${inputBg} ${inputBorder}`}
                   >
                     <Feather name="clock" size={16} color="#7c3aed" />
                     <Text className={`flex-1 text-sm ${inputText}`}>
@@ -393,7 +388,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                 </View>
               </View>
 
-              {/* Native pickers (render conditionally) */}
+              {/* Native pickers */}
               {showDatePicker && (
                 <DateTimePicker
                   value={selectedDate}
@@ -424,13 +419,13 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                 placeholder="e.g. Room 1, Chair 2, Suite A"
                 placeholderTextColor="#94a3b8"
                 autoCapitalize="words"
-                className={`mb-2 rounded-2xl border px-4 py-3.5 text-sm ${inputBg} ${inputText} ${inputBorder}`}
+                className={`mb-3 rounded-2xl border px-4 py-4 text-sm ${inputBg} ${inputText} ${inputBorder}`}
               />
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ gap: 6, paddingVertical: 4 }}
-                className="mb-4"
+                className="mb-5"
               >
                 {ROOM_PRESETS.map((r) => {
                   const active = room === r;
@@ -438,7 +433,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                     <Pressable
                       key={r}
                       onPress={() => setRoom(active ? "" : r)}
-                      className={`rounded-full px-3 py-1.5 ${
+                      className={`rounded-full px-3.5 py-2 ${
                         active ? "bg-purple-800" : chipBg
                       }`}
                     >
@@ -458,7 +453,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
               <Text className={`mb-2 text-xs font-bold ${labelText}`}>
                 Status
               </Text>
-              <View className={`mb-4 flex-row rounded-full p-1 ${statusTrack}`}>
+              <View className={`mb-5 flex-row rounded-full p-1.5 ${statusTrack}`}>
                 {STATUSES.map((s) => {
                   const active = status === s;
                   return (
@@ -470,7 +465,7 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                           ? { backgroundColor: statusColors[s]?.bg }
                           : undefined
                       }
-                      className="flex-1 items-center rounded-full py-2.5"
+                      className="flex-1 items-center rounded-full py-3"
                     >
                       <Text
                         style={
@@ -504,14 +499,12 @@ const [showTimePicker, setShowTimePicker] = useState(false);
                 multiline
                 numberOfLines={2}
                 textAlignVertical="top"
-                className={`min-h-[60] rounded-2xl border px-4 py-3.5 text-sm ${inputBg} ${inputText} ${inputBorder}`}
+                className={`min-h-[70] rounded-2xl border px-4 py-4 text-sm ${inputBg} ${inputText} ${inputBorder}`}
               />
             </ScrollView>
 
             {/* Fixed footer */}
-            <View
-              className={`border-t px-6 py-4 ${footerBorder} ${footerBg}`}
-            >
+            <View className={`border-t px-6 py-4 ${footerBorder}`}>
               <View className="flex-row gap-3">
                 <Pressable
                   onPress={handleClose}

@@ -99,7 +99,7 @@ export default function SearchScreen({ onBack, onSelectPatient }: Props) {
         keyboardShouldPersistTaps="handled"
       >
         {/* ───── Hero header ───── */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-5">
+        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-8">
           {/* Top row */}
           <View className="flex-row items-center px-5">
             <View className="w-24">

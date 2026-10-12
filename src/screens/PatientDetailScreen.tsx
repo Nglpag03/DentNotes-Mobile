@@ -202,7 +202,7 @@ if (loading) {
         }
       >
         {/* ───── Hero header ───── */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-5">
+        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-8">
           {/* Top row */}
           <View className="flex-row items-center justify-between px-5">
             <Pressable

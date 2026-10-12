@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { Pressable, Text, View } from "react-native";
+import { useTheme } from "../context/ThemeContext";
 
 type Tab = "home" | "schedule" | "patients" | "notes";
 
@@ -17,15 +18,19 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
 ];
 
 export default function BottomNav({ active, onNavigate, onAdd }: Props) {
+  const { isDark } = useTheme();
+
+  const barBg = isDark ? "bg-purple-950" : "bg-purple-900";
+
   return (
     <View
-      className="absolute inset-x-4 bottom-4 flex-row items-center justify-between rounded-full bg-purple-950 px-3 py-3"
+      className={`absolute inset-x-4 bottom-4 flex-row items-center justify-between rounded-full px-3 py-3 ${barBg}`}
       style={{
         shadowColor: "#4c1d95",
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
+        shadowOpacity: 0.3,
         shadowRadius: 20,
-        elevation: 12,
+        elevation: 14,
       }}
     >
       {TABS.slice(0, 2).map((tab) => (
@@ -37,19 +42,22 @@ export default function BottomNav({ active, onNavigate, onAdd }: Props) {
         />
       ))}
 
+      {/* Center FAB */}
       <Pressable
         onPress={onAdd}
-        className="h-14 w-14 items-center justify-center rounded-full bg-purple-500"
+        className="h-16 w-16 items-center justify-center rounded-full bg-purple-500"
         style={{
-          marginTop: -28,
+          marginTop: -34,
+          borderWidth: 4,
+          borderColor: "#ffffff",
           shadowColor: "#a855f7",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.4,
-          shadowRadius: 12,
-          elevation: 8,
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.5,
+          shadowRadius: 14,
+          elevation: 12,
         }}
       >
-        <Feather name="plus" size={26} color="#ffffff" />
+        <Feather name="plus" size={28} color="#ffffff" />
       </Pressable>
 
       {TABS.slice(2).map((tab) => (
@@ -76,20 +84,30 @@ function NavButton({
   return (
     <Pressable
       onPress={onPress}
-      className="flex-1 items-center justify-center py-2"
+      className="flex-1 items-center justify-center"
     >
-      <Feather
-        name={tab.icon as any}
-        size={20}
-        color={active ? "#ffffff" : "#c4b5fd"}
-      />
-      <Text
-        className={`mt-1 text-[9px] font-bold ${
-          active ? "text-white" : "text-purple-300"
+      <View
+        className={`h-12 w-12 items-center justify-center rounded-full ${
+          active ? "bg-purple-700" : ""
         }`}
+        style={
+          active
+            ? {
+                shadowColor: "#a855f7",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.4,
+                shadowRadius: 8,
+                elevation: 6,
+              }
+            : undefined
+        }
       >
-        {tab.label}
-      </Text>
+        <Feather
+          name={tab.icon as any}
+          size={22}
+          color={active ? "#ffffff" : "#c4b5fd"}
+        />
+      </View>
     </Pressable>
   );
 }

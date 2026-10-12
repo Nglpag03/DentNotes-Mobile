@@ -26,6 +26,7 @@ import ProfileMenu from "../components/ProfileMenu";
 import HeaderActions from "../components/HeaderActions";
 import BottomNav from "../components/BottomNav";
 import { NotesSkeleton } from "../components/Skeleton";
+import PatientFormModal from "./PatientFormModal";
 
 interface Props {
   onSelectPatient: (id: string) => void;
@@ -72,6 +73,7 @@ export default function NotesScreen({
   const labelText = isDark ? "text-slate-500" : "text-slate-400";
   const pillBg = isDark ? "bg-purple-950" : "bg-purple-100";
   const pillText = isDark ? "text-purple-200" : "text-purple-800";
+  const [showPatientForm, setShowPatientForm] = useState(false);
 
   const load = useCallback(async () => {
     setError("");
@@ -188,7 +190,7 @@ export default function NotesScreen({
         }
       >
         {/* Hero header */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-5">
+        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-8">
           <View className="flex-row items-center px-5">
             <View className="w-24">
               <ProfileMenu />
@@ -387,9 +389,9 @@ export default function NotesScreen({
           if (tab === "schedule") onOpenSchedule();
           if (tab === "patients") onOpenPatients();
         }}
-        onAdd={() => {
-          // No-op — the notes screen doesn't add new
-        }}
+        onAdd={() => setShowPatientForm(true) 
+         
+        }
       />
 
       {/* Session detail sheet */}
@@ -416,6 +418,15 @@ export default function NotesScreen({
         onClose={() => setEditingSession(null)}
         onSaved={() => {
           setEditingSession(null);
+          load();
+        }}
+      />
+
+      <PatientFormModal
+        visible={showPatientForm}
+        onClose={() => setShowPatientForm(false)}
+        onSaved={() => {
+          setShowPatientForm(false);
           load();
         }}
       />

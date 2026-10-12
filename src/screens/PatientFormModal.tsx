@@ -16,7 +16,6 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { BlurView } from "expo-blur";
 
-
 interface Props {
   visible: boolean;
   onClose: () => void;
@@ -59,6 +58,8 @@ export default function PatientFormModal({ visible, onClose, onSaved }: Props) {
   const chipText = isDark ? "text-purple-200" : "text-purple-800";
   const cancelBg = isDark ? "bg-[#252033]" : "bg-purple-100";
   const cancelText = isDark ? "text-purple-200" : "text-purple-800";
+  const trackBg = isDark ? "bg-[#252033]" : "bg-purple-100";
+  const footerBorder = isDark ? "border-slate-800" : "border-slate-100";
 
   function reset() {
     setFullName("");
@@ -86,7 +87,6 @@ export default function PatientFormModal({ visible, onClose, onSaved }: Props) {
       return;
     }
 
-    // Split "John Doe" → first_name="John", last_name="Doe"
     const parts = fullName.trim().split(/\s+/);
     const firstName = parts[0];
     const lastName = parts.slice(1).join(" ") || "";
@@ -131,7 +131,7 @@ export default function PatientFormModal({ visible, onClose, onSaved }: Props) {
       onRequestClose={handleClose}
     >
       <View className="flex-1 justify-end">
-        {/* Blurred backdrop (tappable to close) */}
+        {/* Blurred backdrop */}
         <Pressable onPress={handleClose} className="absolute inset-0">
           <BlurView
             intensity={Platform.OS === "ios" ? 60 : 100}
@@ -142,16 +142,15 @@ export default function PatientFormModal({ visible, onClose, onSaved }: Props) {
         </Pressable>
 
         {/* Sheet */}
-        <View className={`h-[92%] rounded-t-[32px] ${sheetBg}`}>
-
+        <View className={`h-[94%] rounded-t-[32px] ${sheetBg}`}>
           {/* Hero header */}
-          <View className="rounded-t-[32px] bg-purple-800 px-6 pb-16 pt-6">
+          <View className="rounded-t-[32px] bg-purple-800 px-6 pb-20 pt-8">
             <View className="flex-row items-start justify-between">
-              <View>
-                <Text className="text-2xl font-extrabold text-white">
+              <View className="flex-1">
+                <Text className="text-3xl font-extrabold text-white">
                   New patient
                 </Text>
-                <Text className="mt-1 text-xs text-purple-200">
+                <Text className="mt-2 text-xs text-purple-200">
                   Create a record in seconds
                 </Text>
               </View>
@@ -165,15 +164,20 @@ export default function PatientFormModal({ visible, onClose, onSaved }: Props) {
           </View>
 
           {/* Floating icon badge */}
-          <View className="-mt-10 items-center">
+          <View className="-mt-12 items-center">
             <View
-              className={`h-20 w-20 items-center justify-center rounded-full ${sheetBg}`}
+              className={`h-24 w-24 items-center justify-center rounded-full ${sheetBg}`}
               style={{
-                borderWidth: 4,
+                borderWidth: 5,
                 borderColor: isDark ? "#1a1525" : "#ffffff",
+                shadowColor: "#7c3aed",
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.15,
+                shadowRadius: 12,
+                elevation: 8,
               }}
             >
-              <Feather name="user-plus" size={28} color="#7c3aed" />
+              <Feather name="user-plus" size={32} color="#7c3aed" />
             </View>
           </View>
 
@@ -183,9 +187,9 @@ export default function PatientFormModal({ visible, onClose, onSaved }: Props) {
           >
             <ScrollView
               contentContainerStyle={{
-                padding: 24,
-                paddingTop: 16,
-                paddingBottom: 24,
+                paddingHorizontal: 24,
+                paddingTop: 8,
+                paddingBottom: 32,
               }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
@@ -207,29 +211,29 @@ export default function PatientFormModal({ visible, onClose, onSaved }: Props) {
                 placeholder="e.g. Maya Thompson"
                 placeholderTextColor="#94a3b8"
                 autoCapitalize="words"
-                className={`mb-4 rounded-2xl border px-4 py-3.5 text-sm ${inputBg} ${inputText} ${inputBorder}`}
+                className={`mb-5 rounded-2xl border px-4 py-4 text-sm ${inputBg} ${inputText} ${inputBorder}`}
               />
 
               {/* Phone */}
               <Text className={`mb-2 text-xs font-bold ${labelText}`}>Phone</Text>
               <View
-                className={`mb-4 flex-row items-center gap-2 rounded-2xl border px-4 ${inputBg} ${inputBorder}`}
+                className={`mb-5 flex-row items-center gap-3 rounded-2xl border px-4 ${inputBg} ${inputBorder}`}
               >
                 <Feather name="phone" size={16} color="#7c3aed" />
                 <TextInput
                   value={phone}
                   onChangeText={setPhone}
-                  placeholder="+1 555 0123"
+                  placeholder="+63 917 123 4567"
                   placeholderTextColor="#94a3b8"
                   keyboardType="phone-pad"
-                  className={`flex-1 py-3.5 text-sm ${inputText}`}
+                  className={`flex-1 py-4 text-sm ${inputText}`}
                 />
               </View>
 
               {/* Email */}
               <Text className={`mb-2 text-xs font-bold ${labelText}`}>Email</Text>
               <View
-                className={`mb-4 flex-row items-center gap-2 rounded-2xl border px-4 ${inputBg} ${inputBorder}`}
+                className={`mb-5 flex-row items-center gap-3 rounded-2xl border px-4 ${inputBg} ${inputBorder}`}
               >
                 <Feather name="mail" size={16} color="#7c3aed" />
                 <TextInput
@@ -239,7 +243,7 @@ export default function PatientFormModal({ visible, onClose, onSaved }: Props) {
                   placeholderTextColor="#94a3b8"
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  className={`flex-1 py-3.5 text-sm ${inputText}`}
+                  className={`flex-1 py-4 text-sm ${inputText}`}
                 />
               </View>
 
@@ -252,23 +256,21 @@ export default function PatientFormModal({ visible, onClose, onSaved }: Props) {
                 placeholderTextColor="#94a3b8"
                 keyboardType="number-pad"
                 maxLength={3}
-                className={`mb-4 rounded-2xl border px-4 py-3.5 text-sm ${inputBg} ${inputText} ${inputBorder}`}
+                className={`mb-5 rounded-2xl border px-4 py-4 text-sm ${inputBg} ${inputText} ${inputBorder}`}
               />
 
               {/* Gender */}
-              <Text className={`mb-2 text-xs font-bold ${labelText}`}>Gender</Text>
-              <View
-                className={`mb-4 flex-row rounded-full p-1 ${
-                  isDark ? "bg-[#252033]" : "bg-purple-100"
-                }`}
-              >
+              <Text className={`mb-2 text-xs font-bold ${labelText}`}>
+                Gender
+              </Text>
+              <View className={`mb-5 flex-row rounded-full p-1.5 ${trackBg}`}>
                 {GENDERS.map((g) => {
                   const active = gender === g;
                   return (
                     <Pressable
                       key={g}
                       onPress={() => setGender(g)}
-                      className={`flex-1 items-center rounded-full py-2.5 ${
+                      className={`flex-1 items-center rounded-full py-3 ${
                         active ? "bg-purple-800" : ""
                       }`}
                     >
@@ -289,10 +291,10 @@ export default function PatientFormModal({ visible, onClose, onSaved }: Props) {
               </View>
 
               {/* Reason for visit */}
-              <Text className={`mb-2 text-xs font-bold ${labelText}`}>
+              <Text className={`mb-3 text-xs font-bold ${labelText}`}>
                 Reason for visit
               </Text>
-              <View className="mb-4 flex-row flex-wrap gap-2">
+              <View className="mb-5 flex-row flex-wrap gap-2.5">
                 {REASONS.map((r) => {
                   const active = reasons.includes(r);
                   return (
@@ -325,22 +327,20 @@ export default function PatientFormModal({ visible, onClose, onSaved }: Props) {
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                className={`min-h-[100] rounded-2xl border px-4 py-3.5 text-sm ${inputBg} ${inputText} ${inputBorder}`}
+                className={`min-h-[110] rounded-2xl border px-4 py-4 text-sm ${inputBg} ${inputText} ${inputBorder}`}
               />
             </ScrollView>
 
-            {/* Fixed footer — always visible */}
-            <View
-              className={`border-t px-6 py-4 ${
-                isDark ? "border-slate-800" : "border-slate-100"
-              }`}
-            >
+            {/* Fixed footer */}
+            <View className={`border-t px-6 py-4 ${footerBorder}`}>
               <View className="flex-row gap-3">
                 <Pressable
                   onPress={handleClose}
                   className={`flex-1 items-center justify-center rounded-full py-4 ${cancelBg}`}
                 >
-                  <Text className={`text-sm font-bold ${cancelText}`}>Cancel</Text>
+                  <Text className={`text-sm font-bold ${cancelText}`}>
+                    Cancel
+                  </Text>
                 </Pressable>
                 <Pressable
                   onPress={handleSave}
@@ -352,7 +352,9 @@ export default function PatientFormModal({ visible, onClose, onSaved }: Props) {
                   {busy ? (
                     <ActivityIndicator color="#ffffff" />
                   ) : (
-                    <Text className="text-sm font-bold text-white">Save patient</Text>
+                    <Text className="text-sm font-bold text-white">
+                      Save patient
+                    </Text>
                   )}
                 </Pressable>
               </View>

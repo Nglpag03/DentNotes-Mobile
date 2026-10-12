@@ -206,7 +206,7 @@ if (loading) {
         }
       >
         {/* Hero header */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-5">
+        <View className="rounded-b-[40px] bg-purple-800 pb-8 pt-8">
           <View className="flex-row items-center justify-between px-5">
             {/* Left spacer (no back button — bottom nav is the navigator) */}
               <ProfileMenu />
