@@ -2,6 +2,7 @@
   "expo": {
     "name": "DentNotes",
     "slug": "dentnotes-mobile",
+    "scheme": "dentnotes",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

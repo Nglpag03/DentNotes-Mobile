@@ -1,6 +1,5 @@
 import "./tailwind.css";
-import { useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Alert, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
@@ -16,6 +15,11 @@ import NotesScreen from "./src/screens/NotesScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import AboutScreen from "./src/screens/AboutScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
+import { useEffect, useRef, useState } from "react";
+
+import * as Linking from "expo-linking";
+import ResetPasswordScreen from "./src/screens/ResetPasswordScreen";
+import { supabase } from "./src/lib/supabase";
 
 type Screen =
   | { name: "dashboard" }
@@ -32,22 +36,103 @@ type Screen =
   | { name: "patient-from-search"; id: string }
   | { name: "patient-from-notes"; id: string };
 
+ function parseAuthParams(url: string) {
+  const params = new URLSearchParams();
+  const [beforeHash, hash = ""] = url.split("#");
+  const query = beforeHash.split("?")[1] ?? "";
+  new URLSearchParams(query).forEach((v, k) => params.set(k, v));
+  new URLSearchParams(hash).forEach((v, k) => params.set(k, v));
+  return params;
+} 
+
 function Root() {
   const { session, loading, onboardingSeen, markOnboardingSeen } = useAuth();
   const [screen, setScreen] = useState<Screen>({ name: "dashboard" });
+  const [resetRequested, setResetRequested] = useState(false);
+  const [processingLink, setProcessingLink] = useState(false);
+  const handledUrls = useRef(new Set<string>());
 
-  if (loading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-[#faf8fc]">
-        <ActivityIndicator size="large" color="#7c3aed" />
-        <StatusBar style="dark" />
-      </View>
-    );
+useEffect(() => {
+  async function handleIncomingUrl(url: string | null) {
+    if (!url || !url.includes("reset-password")) return;
+    if (handledUrls.current.has(url)) return;
+    handledUrls.current.add(url);
+
+    setProcessingLink(true);
+    try {
+      const params = parseAuthParams(url);
+
+      if (params.get("error")) {
+        throw new Error(params.get("error_description") ?? "Link error");
+      }
+
+      const code = params.get("code");
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+        setResetRequested(true);
+        return;
+      }
+
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      if (accessToken && refreshToken) {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (error) throw error;
+        setResetRequested(true);
+        return;
+      }
+
+      throw new Error("No recovery code or tokens in link");
+    } catch (error) {
+      console.error("Password reset link failed:", error);
+      Alert.alert(
+        "Reset link problem",
+        "This link is invalid or has expired. Please request a new one."
+      );
+    } finally {
+      setProcessingLink(false);
+    }
   }
+
+  void Linking.getInitialURL().then(handleIncomingUrl);
+  const subscription = Linking.addEventListener("url", ({ url }) => {
+    void handleIncomingUrl(url);
+  });
+  return () => subscription.remove();
+}, []);
+
+
+    useEffect(() => {
+    if (session) {
+      setScreen({ name: "dashboard" });
+    }
+  }, [session?.user.id]);
+
+if (loading || processingLink) {
+  return (
+    <View className="flex-1 items-center justify-center bg-[#faf8fc]">
+      <ActivityIndicator size="large" color="#7c3aed" />
+      <StatusBar style="dark" />
+    </View>
+  );
+}
+
+  if (resetRequested) {
+  return (
+    <ResetPasswordScreen
+      onComplete={() => setResetRequested(false)}
+    />
+  );
+}
 
   if (!onboardingSeen && !session) {
     return <OnboardingScreen onFinish={markOnboardingSeen} />;
   }
+
 
    if (!session) return <LoginScreen />;
 

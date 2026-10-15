@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,7 +12,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Feather } from "@expo/vector-icons";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { supabase } from "../lib/supabase";
 import { useTheme } from "../context/ThemeContext";
 import type { Patient, Session, SessionStatus } from "../types";
@@ -20,7 +21,6 @@ import SessionFormModal from "./SessionFormModal";
 import AiHelper from "../components/AiHelper";
 import { PatientDetailSkeleton } from "../components/Skeleton";
 import { downloadPatientProfilePdf } from "../lib/pdf";
-import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PhotoGallery from "../components/PhotoGallery";
 
@@ -37,18 +37,36 @@ const STATUS_LABEL: Record<SessionStatus, string> = {
   COMPLETED: "Done",
 };
 
+function fmt(value: string | null | undefined, pattern: string, fallback = "—") {
+  if (!value) return fallback;
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? fallback : format(d, pattern);
+}
+
+function hasRealValue(value: string | null | undefined) {
+  if (!value) return false;
+  return !["none", "n/a", "na", "no", "nil", "-"].includes(
+    value.trim().toLowerCase(),
+  );
+}
+
 export default function PatientDetailScreen({ patientId, onBack }: Props) {
   const { isDark, toggleTheme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [error, setError] = useState("");
+  const [notFound, setNotFound] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [showAi, setShowAi] = useState(false);
+  const [photoCount, setPhotoCount] = useState(0);
+  const [downloading, setDownloading] = useState(false);
   const insets = useSafeAreaInsets();
+
+  // Theme tokens
   const bg = isDark ? "bg-[#0e0a1a]" : "bg-[#faf8fc]";
   const cardBg = isDark ? "bg-[#1a1525]" : "bg-white";
   const cardBorder = isDark ? "border-purple-900/40" : "border-purple-100";
@@ -56,29 +74,56 @@ export default function PatientDetailScreen({ patientId, onBack }: Props) {
   const bodyText = isDark ? "text-slate-400" : "text-slate-500";
   const pillBg = isDark ? "bg-purple-950" : "bg-purple-100";
   const pillText = isDark ? "text-purple-200" : "text-purple-800";
-  const chipBg = isDark ? "bg-[#252033]" : "bg-purple-50";
   const labelText = isDark ? "text-slate-500" : "text-slate-400";
-  const [downloading, setDownloading] = useState(false);
+
+  const scrollRef = useRef<ScrollView>(null);
+  const bodyY = useRef(0);
+  const pendingAiScroll = useRef(false);
+  const loadId = useRef(0);
+  const photosRef = useRef<View>(null);
+
   const load = useCallback(async () => {
-    setError("");
+    const id = ++loadId.current;
 
-    const p = await supabase
-      .from("patients")
-      .select("*")
-      .eq("id", patientId)
-      .single();
+    try {
+      const [p, s] = await Promise.all([
+        supabase.from("patients").select("*").eq("id", patientId).single(),
+        supabase
+          .from("sessions")
+          .select("*")
+          .eq("patient_id", patientId)
+          .order("session_date", { ascending: false }),
+      ]);
 
-    if (p.error) return setError(p.error.message);
-    setPatient(p.data as Patient);
+      if (id !== loadId.current) return;
 
-    const s = await supabase
-      .from("sessions")
-      .select("*")
-      .eq("patient_id", patientId)
-      .order("session_date", { ascending: false });
+      if (p.error) {
+        if (p.error.code === "PGRST116") {
+          setNotFound(true);
+          setPatient(null);
+          setLoadFailed(false);
+        } else {
+          console.error("Patient load failed:", p.error.message);
+          setLoadFailed(true);
+        }
+        return;
+      }
 
-    if (s.error) setError(s.error.message);
-    else setSessions((s.data as Session[]) ?? []);
+      setNotFound(false);
+      setPatient(p.data as Patient);
+
+      if (s.error) {
+        console.error("Sessions load failed:", s.error.message);
+        setLoadFailed(true);
+      } else {
+        setSessions((s.data as Session[]) ?? []);
+        setLoadFailed(false);
+      }
+    } catch (e) {
+      if (id !== loadId.current) return;
+      console.error("Patient detail load failed:", e);
+      setLoadFailed(true);
+    }
   }, [patientId]);
 
   useEffect(() => {
@@ -91,8 +136,25 @@ export default function PatientDetailScreen({ patientId, onBack }: Props) {
 
   async function onRefresh() {
     setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function retry() {
+    setLoading(true);
     await load();
-    setRefreshing(false);
+    setLoading(false);
+  }
+
+  async function openExternal(url: string, failTitle: string, failMsg: string) {
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert(failTitle, failMsg);
+    }
   }
 
   async function changeStatus(sessionId: string, next: SessionStatus) {
@@ -112,60 +174,105 @@ export default function PatientDetailScreen({ patientId, onBack }: Props) {
           x.id === sessionId ? { ...x, status: prev as SessionStatus } : x,
         ),
       );
+      Alert.alert(
+        "Couldn't update status",
+        "The status wasn't changed. Please check your connection and try again.",
+      );
     }
     setUpdatingId(null);
   }
 
-async function handleDownload() {
-  if (!patient) return;
-  setDownloading(true);
-  try {
-    await downloadPatientProfilePdf(patient, sessions);
-    Alert.alert(
-      "PDF saved",
-      Platform.OS === "android"
-        ? "The file was saved to your Downloads folder."
-        : "Choose where to save the file.",
-    );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    if (!message.includes("shareAsync has been rejected")) {
-      Alert.alert("Couldn't generate PDF", message);
+  async function handleDownload() {
+    if (!patient) return;
+    setDownloading(true);
+    try {
+      await downloadPatientProfilePdf(patient, sessions);
+      if (Platform.OS === "android") {
+        Alert.alert(
+          "PDF saved",
+          "The file was saved to your Downloads folder.",
+        );
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      if (!message.includes("shareAsync has been rejected")) {
+        Alert.alert("Couldn't generate PDF", message);
+      }
+    } finally {
+      setDownloading(false);
     }
-  } finally {
-    setDownloading(false);
   }
-}
 
-  async function deleteSession(sessionId: string) {
+  async function deleteSession(s: Session) {
     const confirmed = await new Promise<boolean>((resolve) => {
       Alert.alert(
         "Delete check-up?",
-        "This cannot be undone.",
+        `"${s.title}" on ${fmt(s.session_date, "MMM d, yyyy")} will be permanently deleted. This cannot be undone.`,
         [
           { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-          { text: "Delete", style: "destructive", onPress: () => resolve(true) },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: () => resolve(true),
+          },
         ],
         { cancelable: true, onDismiss: () => resolve(false) },
       );
     });
     if (!confirmed) return;
+
+    const before = sessions;
+    setSessions((list) => list.filter((x) => x.id !== s.id));
+
     const { error } = await supabase
       .from("sessions")
       .delete()
-      .eq("id", sessionId);
-    if (error) setError(error.message);
-    else await load();
+      .eq("id", s.id);
+
+    if (error) {
+      setSessions(before);
+      Alert.alert(
+        "Couldn't delete check-up",
+        "It was not deleted. Please check your connection and try again.",
+      );
+    }
   }
 
-if (loading) {
-  return (
-    <>
-      <StatusBar style="light" />
-      <PatientDetailSkeleton />
-    </>
-  );
-}
+  const lastVisit = useMemo(() => {
+    const done = sessions.find((s) => s.status === "COMPLETED");
+    return done ? fmt(done.session_date, "MMM d, yyyy") : "No visits";
+  }, [sessions]);
+
+  const nextVisit = useMemo(() => {
+    const now = Date.now();
+    let best: Session | null = null;
+    let bestTime = Infinity;
+    for (const s of sessions) {
+      if (s.status === "COMPLETED") continue;
+      const t = new Date(s.session_date).getTime();
+      if (!isNaN(t) && t >= now && t < bestTime) {
+        best = s;
+        bestTime = t;
+      }
+    }
+    return best;
+  }, [sessions]);
+
+  function scrollToPhotos() {
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, bodyY.current + (photosRef.current as any)?._nativeTag ? 0 : 0),
+      animated: true,
+    });
+  }
+
+  if (loading) {
+    return (
+      <>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <PatientDetailSkeleton />
+      </>
+    );
+  }
 
   if (!patient) {
     return (
@@ -173,32 +280,63 @@ if (loading) {
         <StatusBar style={isDark ? "light" : "dark"} />
         <View className="flex-1 items-center justify-center px-6">
           <Feather name="alert-circle" size={36} color="#dc2626" />
-          <Text className="mt-3 text-sm text-red-600">
-            {error || "Patient not found"}
+          <Text className={`mt-3 text-base font-bold ${headingText}`}>
+            {notFound ? "Patient not found" : "Couldn't load this patient"}
           </Text>
-          <Pressable
-            onPress={onBack}
-            className="mt-6 rounded-full bg-purple-700 px-5 py-2.5"
-          >
-            <Text className="text-sm font-bold text-white">Go back</Text>
-          </Pressable>
+          <Text className={`mt-1 text-center text-sm ${bodyText}`}>
+            {notFound
+              ? "This record may have been removed."
+              : "Please check your connection and try again."}
+          </Text>
+
+          <View className="mt-6 flex-row gap-3">
+            {!notFound ? (
+              <Pressable
+                onPress={retry}
+                accessibilityRole="button"
+                accessibilityLabel="Try again"
+                className="rounded-full bg-purple-700 px-5 py-2.5 active:opacity-80"
+              >
+                <Text className="text-sm font-bold text-white">Try again</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={onBack}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              className={`rounded-full px-5 py-2.5 active:opacity-80 ${
+                notFound ? "bg-purple-700" : pillBg
+              }`}
+            >
+              <Text
+                className={`text-sm font-bold ${
+                  notFound ? "text-white" : pillText
+                }`}
+              >
+                Go back
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     );
   }
 
-  const lastVisit = sessions[0]?.session_date
-    ? format(parseISO(sessions[0].session_date), "MMM d, yyyy")
-    : "No visits";
-
-  const completedCount = sessions.filter((s) => s.status === "COMPLETED").length;
-  const inProgressCount = sessions.filter((s) => s.status === "IN PROGRESS").length;
+  const completedCount = sessions.filter(
+    (s) => s.status === "COMPLETED",
+  ).length;
+  const inProgressCount = sessions.filter(
+    (s) => s.status === "IN PROGRESS",
+  ).length;
+  const allergiesPresent = hasRealValue(patient.allergies);
+  const phoneDigits = (patient.phone ?? "").replace(/[^\d+]/g, "");
 
   return (
     <View className={`flex-1 ${bg}`}>
       <StatusBar style="light" />
 
       <ScrollView
+        ref={scrollRef}
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 60 }}
         refreshControl={
@@ -206,62 +344,82 @@ if (loading) {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor="#ffffff"
+            colors={["#7c3aed"]}
           />
         }
       >
-        {/* ───── Hero header ───── */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-10" 
-        style={{ paddingTop: insets.top + 12 }}>
-          {/* Top row */}
+        {/* ───── Hero header (slimmed down) ───── */}
+        <View
+          className="rounded-b-[40px] bg-purple-800 pb-14"
+          style={{ paddingTop: insets.top + 12 }}
+        >
+          {/* Top row: back / title / download + theme */}
           <View className="flex-row items-center justify-between px-5">
             <Pressable
               onPress={onBack}
-              className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              className="h-11 w-11 items-center justify-center rounded-full bg-white/10 active:opacity-70"
             >
               <Feather name="arrow-left" size={20} color="#ffffff" />
             </Pressable>
 
             <View className="flex-1 flex-row items-center justify-center gap-2">
               <View className="h-6 w-6 items-center justify-center rounded-md bg-white">
-                <Text className="text-xs font-extrabold text-purple-800">D</Text>
+                <Text className="text-xs font-extrabold text-purple-800">
+                  D
+                </Text>
               </View>
-              <Text className="text-lg font-extrabold tracking-tight text-white">
+              <Text
+                accessibilityRole="header"
+                className="text-lg font-extrabold tracking-tight text-white"
+              >
                 Profile
               </Text>
             </View>
 
-<View className="flex-row items-center gap-2">
-  <Pressable
-    onPress={handleDownload}
-    disabled={downloading}
-    className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
-  >
-    {downloading ? (
-      <ActivityIndicator size="small" color="#ffffff" />
-    ) : (
-      <Feather name="download" size={20} color="#ffffff" />
-    )}
-  </Pressable>
+            <View className="flex-row items-center gap-2">
+              <Pressable
+                onPress={handleDownload}
+                disabled={downloading}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Download patient profile as PDF"
+                accessibilityState={{ disabled: downloading, busy: downloading }}
+                className="h-11 w-11 items-center justify-center rounded-full bg-white/10 active:opacity-70"
+              >
+                {downloading ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Feather name="download" size={20} color="#ffffff" />
+                )}
+              </Pressable>
 
-  <Pressable
-    onPress={toggleTheme}
-    className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
-  >
-    <Feather
-      name={isDark ? "sun" : "moon"}
-      size={20}
-      color="#ffffff"
-    />
-  </Pressable>
-</View>
+              <Pressable
+                onPress={toggleTheme}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  isDark ? "Switch to light mode" : "Switch to dark mode"
+                }
+                className="h-11 w-11 items-center justify-center rounded-full bg-white/10 active:opacity-70"
+              >
+                <Feather
+                  name={isDark ? "sun" : "moon"}
+                  size={20}
+                  color="#ffffff"
+                />
+              </Pressable>
+            </View>
           </View>
 
           {/* Identity */}
           <View className="mt-6 flex-row items-center gap-4 px-5">
             <View className="h-20 w-20 items-center justify-center rounded-[24px] bg-white/20 ring-4 ring-white/10">
               <Text className="text-2xl font-extrabold text-white">
-                {patient.first_name.charAt(0)}
-                {patient.last_name.charAt(0)}
+                {(patient.first_name ?? "").charAt(0)}
+                {(patient.last_name ?? "").charAt(0)}
               </Text>
             </View>
 
@@ -298,13 +456,22 @@ if (loading) {
             <View className="mt-5 flex-row gap-2 px-5">
               {patient.phone ? (
                 <Pressable
-                  onPress={() => Linking.openURL(`tel:${patient.phone}`)}
-                  className="flex-1 flex-row items-center gap-2 rounded-2xl bg-white/10 px-3 py-2.5"
+                  onPress={() =>
+                    openExternal(
+                      `tel:${phoneDigits || patient.phone}`,
+                      "Couldn't start the call",
+                      `This device can't place calls. The number is ${patient.phone}.`,
+                    )
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={`Call ${patient.phone}`}
+                  className="flex-1 flex-row items-center gap-2 rounded-2xl bg-white/10 px-3 py-2.5 active:opacity-70"
                 >
                   <Feather name="phone" size={14} color="#ffffff" />
                   <Text
                     className="flex-1 text-xs font-semibold text-white"
                     numberOfLines={1}
+                    ellipsizeMode="middle"
                   >
                     {patient.phone}
                   </Text>
@@ -312,13 +479,22 @@ if (loading) {
               ) : null}
               {patient.email ? (
                 <Pressable
-                  onPress={() => Linking.openURL(`mailto:${patient.email}`)}
-                  className="flex-1 flex-row items-center gap-2 rounded-2xl bg-white/10 px-3 py-2.5"
+                  onPress={() =>
+                    openExternal(
+                      `mailto:${patient.email}`,
+                      "No email app found",
+                      `You can email this patient at ${patient.email}.`,
+                    )
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={`Email ${patient.email}`}
+                  className="flex-1 flex-row items-center gap-2 rounded-2xl bg-white/10 px-3 py-2.5 active:opacity-70"
                 >
                   <Feather name="mail" size={14} color="#ffffff" />
                   <Text
                     className="flex-1 text-xs font-semibold text-white"
                     numberOfLines={1}
+                    ellipsizeMode="middle"
                   >
                     {patient.email}
                   </Text>
@@ -326,33 +502,19 @@ if (loading) {
               ) : null}
             </View>
           )}
-
-          {/* Quick actions */}
-      <View className="mt-3 flex-row gap-2 px-5">
-        <Pressable
-          onPress={() => {
-            setEditingSession(null);
-            setShowAddModal(true);
-          }}
-          className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-white/15 py-3"
-        >
-          <Feather name="plus" size={16} color="#ffffff" />
-          <Text className="text-xs font-bold text-white">Add check-up</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setShowAi(!showAi)}
-          className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-white/15 py-3"
-        >
-          <Feather name="zap" size={16} color="#ffffff" />
-          <Text className="text-xs font-bold text-white">AI Helper</Text>
-        </Pressable>
-      </View>
         </View>
 
-        <View className="px-5">
+        <View
+          className="px-5"
+          onLayout={(e) => {
+            bodyY.current = e.nativeEvent.layout.y;
+          }}
+        >
           {/* ───── Stats ───── */}
-          <View className="-mt-6 flex-row gap-3">
+          <View className="-mt-8 flex-row gap-3">
             <View
+              accessible
+              accessibilityLabel={`Total visits: ${sessions.length}`}
               className="flex-1 rounded-2xl bg-purple-500 p-4"
               style={cardShadow}
             >
@@ -364,6 +526,8 @@ if (loading) {
               </Text>
             </View>
             <View
+              accessible
+              accessibilityLabel={`Completed: ${completedCount}`}
               className={`flex-1 rounded-2xl border p-4 ${cardBorder} ${cardBg}`}
               style={cardShadow}
             >
@@ -375,6 +539,8 @@ if (loading) {
               </Text>
             </View>
             <View
+              accessible
+              accessibilityLabel={`Active: ${inProgressCount}`}
               className={`flex-1 rounded-2xl border p-4 ${cardBorder} ${cardBg}`}
               style={cardShadow}
             >
@@ -387,6 +553,99 @@ if (loading) {
             </View>
           </View>
 
+          {/* ───── Quick actions (moved out of hero) ───── */}
+          <View className="mt-4 flex-row gap-2">
+            <Pressable
+              onPress={scrollToPhotos}
+              accessibilityRole="button"
+              accessibilityLabel="Jump to photos"
+              className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-2xl border py-3 active:opacity-70 ${cardBorder} ${cardBg}`}
+            >
+              <Feather name="camera" size={14} color="#7c3aed" />
+              <Text className={`text-[11px] font-bold ${headingText}`}>
+                Photos{photoCount > 0 ? ` (${photoCount})` : ""}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setEditingSession(null);
+                setShowAddModal(true);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Add check-up"
+              className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-2xl border py-3 active:opacity-70 ${cardBorder} ${cardBg}`}
+            >
+              <Feather name="plus" size={14} color="#7c3aed" />
+              <Text className={`text-[11px] font-bold ${headingText}`}>
+                Check-up
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                if (!showAi) pendingAiScroll.current = true;
+                setShowAi(!showAi);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="AI Helper"
+              accessibilityState={{ expanded: showAi }}
+              className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-2xl border py-3 active:opacity-70 ${
+                showAi
+                  ? "border-purple-700 bg-purple-700"
+                  : `${cardBorder} ${cardBg}`
+              }`}
+            >
+              <Feather
+                name="zap"
+                size={14}
+                color={showAi ? "#ffffff" : "#7c3aed"}
+              />
+              <Text
+                className={`text-[11px] font-bold ${
+                  showAi ? "text-white" : headingText
+                }`}
+              >
+                AI
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Load error */}
+          {loadFailed ? (
+            <View
+              accessibilityRole="alert"
+              accessibilityLiveRegion="polite"
+              className={`mt-4 flex-row items-center gap-3 rounded-2xl border px-4 py-3 ${
+                isDark
+                  ? "border-red-900/40 bg-red-950/40"
+                  : "border-red-100 bg-red-50"
+              }`}
+            >
+              <Text
+                className={`flex-1 text-sm leading-5 ${
+                  isDark ? "text-red-300" : "text-red-700"
+                }`}
+              >
+                Some information couldn't be loaded. What you see may be out of
+                date.
+              </Text>
+              <Pressable
+                onPress={onRefresh}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Retry loading"
+                className="active:opacity-70"
+              >
+                <Text
+                  className={`text-sm font-bold ${
+                    isDark ? "text-red-300" : "text-red-700"
+                  }`}
+                >
+                  Retry
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           {/* ───── Health overview ───── */}
           <View
             className={`mt-6 rounded-3xl border p-5 ${cardBorder} ${cardBg}`}
@@ -394,14 +653,19 @@ if (loading) {
           >
             <View className="mb-4 flex-row items-center gap-2">
               <Feather name="heart" size={16} color="#7c3aed" />
-              <Text className={`text-sm font-bold ${headingText}`}>
+              <Text
+                accessibilityRole="header"
+                className={`text-sm font-bold ${headingText}`}
+              >
                 Health overview
               </Text>
             </View>
 
             <View className="flex-row flex-wrap">
               <View className="mb-4 w-1/2 pr-2">
-                <Text className={`text-[9px] font-bold uppercase tracking-wider ${labelText}`}>
+                <Text
+                  className={`text-[9px] font-bold uppercase tracking-wider ${labelText}`}
+                >
                   Condition
                 </Text>
                 <Text className={`mt-1 text-xs font-semibold ${headingText}`}>
@@ -409,7 +673,9 @@ if (loading) {
                 </Text>
               </View>
               <View className="mb-4 w-1/2 pl-2">
-                <Text className={`text-[9px] font-bold uppercase tracking-wider ${labelText}`}>
+                <Text
+                  className={`text-[9px] font-bold uppercase tracking-wider ${labelText}`}
+                >
                   Last Visit
                 </Text>
                 <Text className={`mt-1 text-xs font-semibold ${headingText}`}>
@@ -417,15 +683,28 @@ if (loading) {
                 </Text>
               </View>
               <View className="w-1/2 pr-2">
-                <Text className={`text-[9px] font-bold uppercase tracking-wider ${labelText}`}>
-                  Allergies
-                </Text>
-                <Text className={`mt-1 text-xs font-semibold ${headingText}`}>
+                <View className="flex-row items-center gap-1">
+                  <Text
+                    className={`text-[9px] font-bold uppercase tracking-wider ${labelText}`}
+                  >
+                    Allergies
+                  </Text>
+                  {allergiesPresent ? (
+                    <Feather name="alert-triangle" size={10} color="#ef4444" />
+                  ) : null}
+                </View>
+                <Text
+                  className={`mt-1 text-xs font-semibold ${
+                    allergiesPresent ? "text-red-500" : headingText
+                  }`}
+                >
                   {patient.allergies || "None"}
                 </Text>
               </View>
               <View className="w-1/2 pl-2">
-                <Text className={`text-[9px] font-bold uppercase tracking-wider ${labelText}`}>
+                <Text
+                  className={`text-[9px] font-bold uppercase tracking-wider ${labelText}`}
+                >
                   Medications
                 </Text>
                 <Text className={`mt-1 text-xs font-semibold ${headingText}`}>
@@ -434,13 +713,43 @@ if (loading) {
               </View>
             </View>
 
+            {nextVisit ? (
+              <View
+                accessible
+                accessibilityLabel={`Next visit: ${fmt(nextVisit.session_date, "EEEE, MMMM d 'at' h:mm a")}, ${nextVisit.title}`}
+                className={`mt-4 flex-row items-center gap-3 rounded-2xl p-3 ${
+                  isDark ? "bg-purple-950" : "bg-purple-50"
+                }`}
+              >
+                <Feather name="calendar" size={16} color="#7c3aed" />
+                <View className="flex-1">
+                  <Text className="text-[9px] font-bold uppercase tracking-wider text-purple-500">
+                    Next visit
+                  </Text>
+                  <Text
+                    className={`mt-0.5 text-xs font-semibold ${headingText}`}
+                  >
+                    {fmt(nextVisit.session_date, "EEE, MMM d · h:mm a")}
+                  </Text>
+                  <Text
+                    className={`mt-0.5 text-[11px] ${bodyText}`}
+                    numberOfLines={1}
+                  >
+                    {nextVisit.title}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
             {patient.notes ? (
               <View
                 className={`mt-4 rounded-2xl p-3 ${
                   isDark ? "bg-[#0e0a1a]" : "bg-slate-50"
                 }`}
               >
-                <Text className={`text-[9px] font-bold uppercase tracking-wider ${labelText}`}>
+                <Text
+                  className={`text-[9px] font-bold uppercase tracking-wider ${labelText}`}
+                >
                   Notes
                 </Text>
                 <Text className={`mt-1 text-xs leading-5 ${bodyText}`}>
@@ -450,25 +759,53 @@ if (loading) {
             ) : null}
           </View>
 
-                      {/* ───── Photos & X-rays ───── */}
+          {/* ───── Photos & X-rays ───── */}
           <View
+            ref={photosRef}
             className={`mt-5 rounded-3xl border p-5 ${cardBorder} ${cardBg}`}
             style={cardShadow}
           >
-            <View className="mb-4 flex-row items-center gap-2">
-              <Feather name="camera" size={16} color="#7c3aed" />
-              <Text className={`text-sm font-bold ${headingText}`}>
-                Photos & X-rays
-              </Text>
+            <View className="mb-4 flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2">
+                <Feather name="camera" size={16} color="#7c3aed" />
+                <Text
+                  accessibilityRole="header"
+                  className={`text-sm font-bold ${headingText}`}
+                >
+                  Photos & X-rays
+                </Text>
+                {photoCount > 0 ? (
+                  <View className={`rounded-full px-2 py-0.5 ${pillBg}`}>
+                    <Text className={`text-[10px] font-bold ${pillText}`}>
+                      {photoCount}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
 
-            <PhotoGallery patientId={patientId} allSessions readOnly />
+            <PhotoGallery
+              patientId={patientId}
+              allSessions
+              canEdit
+              layout="grid"
+              onCountChange={setPhotoCount}
+            />
           </View>
-
 
           {/* ───── AI Helper (collapsible) ───── */}
           {showAi ? (
-            <View className="mt-6">
+            <View
+              className="mt-6"
+              onLayout={(e) => {
+                if (!pendingAiScroll.current) return;
+                pendingAiScroll.current = false;
+                scrollRef.current?.scrollTo({
+                  y: Math.max(0, bodyY.current + e.nativeEvent.layout.y - 16),
+                  animated: true,
+                });
+              }}
+            >
               <AiHelper patient={patient} sessions={sessions} />
             </View>
           ) : null}
@@ -480,7 +817,10 @@ if (loading) {
                 <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
                   Clinical notes
                 </Text>
-                <Text className={`mt-1 text-xl font-extrabold ${headingText}`}>
+                <Text
+                  accessibilityRole="header"
+                  className={`mt-1 text-xl font-extrabold ${headingText}`}
+                >
                   Check-up history
                 </Text>
               </View>
@@ -503,7 +843,6 @@ if (loading) {
                     style={cardShadow}
                   >
                     <View className="p-4">
-                      {/* Header row */}
                       <View className="flex-row items-start gap-3">
                         <View
                           className={`h-12 w-12 items-center justify-center rounded-xl ${
@@ -515,21 +854,23 @@ if (loading) {
                               isDark ? "text-purple-200" : "text-purple-900"
                             }`}
                           >
-                            {format(parseISO(s.session_date), "d")}
+                            {fmt(s.session_date, "d")}
                           </Text>
                           <Text
                             className={`text-[9px] font-bold uppercase ${
                               isDark ? "text-purple-200" : "text-purple-900"
                             }`}
                           >
-                            {format(parseISO(s.session_date), "MMM")}
+                            {fmt(s.session_date, "MMM", "")}
                           </Text>
                         </View>
 
                         <View className="flex-1">
-                          <Text className={`text-[10px] font-bold uppercase tracking-wider ${labelText}`}>
-                            {format(parseISO(s.session_date), "EEEE")} ·{" "}
-                            {format(parseISO(s.session_date), "h:mm a")}
+                          <Text
+                            className={`text-[10px] font-bold uppercase tracking-wider ${labelText}`}
+                          >
+                            {fmt(s.session_date, "EEEE")} ·{" "}
+                            {fmt(s.session_date, "h:mm a")}
                           </Text>
                           <Text
                             className={`mt-0.5 text-sm font-extrabold ${headingText}`}
@@ -566,16 +907,12 @@ if (loading) {
                         </View>
                       </View>
 
-                      {/* Description */}
                       {s.description ? (
-                        <Text
-                          className={`mt-3 text-sm leading-6 ${bodyText}`}
-                        >
+                        <Text className={`mt-3 text-sm leading-6 ${bodyText}`}>
                           {s.description}
                         </Text>
                       ) : null}
 
-                      {/* Next step */}
                       {s.next_steps ? (
                         <View
                           className={`mt-3 rounded-2xl p-3 ${
@@ -591,7 +928,6 @@ if (loading) {
                         </View>
                       ) : null}
 
-                      {/* Status control */}
                       <View
                         className={`mt-4 flex-row rounded-xl p-1 ${
                           isDark ? "bg-[#0e0a1a]" : "bg-slate-100"
@@ -604,6 +940,12 @@ if (loading) {
                               key={status}
                               onPress={() => changeStatus(s.id!, status)}
                               disabled={isUpdating}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Mark as ${STATUS_LABEL[status]}`}
+                              accessibilityState={{
+                                selected: active,
+                                disabled: isUpdating,
+                              }}
                               style={
                                 active
                                   ? {
@@ -612,7 +954,7 @@ if (loading) {
                                     }
                                   : undefined
                               }
-                              className="flex-1 rounded-lg py-2"
+                              className="flex-1 rounded-lg py-2.5 active:opacity-70"
                             >
                               <Text
                                 style={
@@ -634,7 +976,6 @@ if (loading) {
                         })}
                       </View>
 
-                      {/* Actions */}
                       <View
                         className={`mt-3 flex-row justify-end gap-2 border-t pt-3 ${
                           isDark ? "border-slate-800" : "border-slate-100"
@@ -645,7 +986,9 @@ if (loading) {
                             setEditingSession(s);
                             setShowAddModal(true);
                           }}
-                          className={`flex-row items-center gap-1 rounded-xl px-3 py-2 ${
+                          accessibilityRole="button"
+                          accessibilityLabel={`Edit check-up ${s.title}`}
+                          className={`flex-row items-center gap-1 rounded-xl px-3 py-2 active:opacity-70 ${
                             isDark ? "bg-purple-950" : "bg-purple-50"
                           }`}
                         >
@@ -663,8 +1006,10 @@ if (loading) {
                           </Text>
                         </Pressable>
                         <Pressable
-                          onPress={() => deleteSession(s.id!)}
-                          className={`flex-row items-center gap-1 rounded-xl px-3 py-2 ${
+                          onPress={() => deleteSession(s)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Delete check-up ${s.title}`}
+                          className={`flex-row items-center gap-1 rounded-xl px-3 py-2 active:opacity-70 ${
                             isDark ? "bg-red-950/40" : "bg-red-50"
                           }`}
                         >
@@ -705,7 +1050,9 @@ if (loading) {
                       setEditingSession(null);
                       setShowAddModal(true);
                     }}
-                    className="mt-4 rounded-full bg-purple-700 px-5 py-2.5"
+                    accessibilityRole="button"
+                    accessibilityLabel="Add check-up"
+                    className="mt-4 rounded-full bg-purple-700 px-5 py-2.5 active:opacity-80"
                   >
                     <Text className="text-xs font-bold text-white">
                       Add check-up
@@ -718,8 +1065,8 @@ if (loading) {
         </View>
       </ScrollView>
 
-      {/* Modals */}
       <SessionFormModal
+        key={editingSession?.id ?? "new-session"}
         visible={showAddModal || !!editingSession}
         patientId={patientId}
         session={editingSession}

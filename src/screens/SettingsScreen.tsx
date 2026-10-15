@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Pressable,
   ScrollView,
   Text,
@@ -37,18 +38,23 @@ const DURATION_OPTIONS = [15, 30, 45, 60, 90];
 
 export default function SettingsScreen({ onBack }: Props) {
   const { isDark, toggleTheme, theme } = useTheme();
+  const insets = useSafeAreaInsets();
+
   const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFERENCES);
   const [loading, setLoading] = useState(true);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
+  // ── Theme tokens ─────────────────────────────────────────
   const bg = isDark ? "bg-[#0e0a1a]" : "bg-[#faf8fc]";
   const cardBg = isDark ? "bg-[#1a1525]" : "bg-white";
   const cardBorder = isDark ? "border-purple-900/40" : "border-purple-100";
   const headingText = isDark ? "text-white" : "text-slate-950";
   const bodyText = isDark ? "text-slate-400" : "text-slate-500";
   const labelText = isDark ? "text-slate-500" : "text-slate-400";
-  const rowBg = isDark ? "bg-[#252033]" : "bg-purple-50";
-  const insets = useSafeAreaInsets();
+  const chipBg = isDark ? "bg-[#252033]" : "bg-purple-50";
+  const chipText = isDark ? "text-purple-200" : "text-purple-800";
+  const divider = isDark ? "border-slate-800" : "border-slate-100";
+
   useEffect(() => {
     (async () => {
       const loaded = await loadPreferences();
@@ -70,8 +76,8 @@ export default function SettingsScreen({ onBack }: Props) {
 
   function resetToDefaults() {
     Alert.alert(
-      "Reset settings?",
-      "Your preferences will return to their defaults.",
+      "Reset all settings?",
+      "Your preferences will return to their defaults. This won't delete any patient data.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -80,6 +86,8 @@ export default function SettingsScreen({ onBack }: Props) {
           onPress: async () => {
             setPrefs(DEFAULT_PREFERENCES);
             await savePreferences(DEFAULT_PREFERENCES);
+            setSavedAt(Date.now());
+            setTimeout(() => setSavedAt(null), 1500);
           },
         },
       ],
@@ -102,11 +110,13 @@ export default function SettingsScreen({ onBack }: Props) {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 60 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
       >
-        {/* Hero */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-10" 
-        style={{ paddingTop: insets.top + 12 }}>
+        {/* ─── Hero ─── */}
+        <View
+          className="rounded-b-[40px] bg-purple-800 pb-8"
+          style={{ paddingTop: insets.top + 12 }}
+        >
           <View className="flex-row items-center px-5">
             <View className="w-24">
               <Pressable
@@ -139,22 +149,10 @@ export default function SettingsScreen({ onBack }: Props) {
               </Pressable>
             </View>
           </View>
-
-          {/* Title */}
-          <View className="mt-6 px-5">
-            <Text className="text-[10px] font-bold uppercase tracking-widest text-purple-200">
-              Preferences
-            </Text>
-            <Text className="mt-1 text-2xl font-extrabold text-white">
-              Customize your app
-            </Text>
-            <Text className="mt-1 text-xs text-purple-200">
-              Saved automatically as you change
-            </Text>
-          </View>
         </View>
 
-        <View className="px-5 pt-6">
+        <View className="px-5 pt-5">
+          {/* Saved banner */}
           {savedAt ? (
             <View className="mb-4 flex-row items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
               <Feather name="check-circle" size={16} color="#047857" />
@@ -165,19 +163,23 @@ export default function SettingsScreen({ onBack }: Props) {
           ) : null}
 
           {/* ─── Appearance ─── */}
-          <View
-            className={`rounded-3xl border p-5 ${cardBorder} ${cardBg}`}
+          <SectionCard
+            title="Appearance"
+            icon="sun"
+            cardBg={cardBg}
+            cardBorder={cardBorder}
+            divider={divider}
+            headingText={headingText}
             style={cardShadow}
           >
-            <View className="mb-4 flex-row items-center gap-2">
-              <Feather name="sun" size={16} color="#7c3aed" />
-              <Text className={`text-sm font-bold ${headingText}`}>
-                Appearance
-              </Text>
-            </View>
-
-            <Text className={`mb-2 text-xs font-bold ${labelText}`}>Theme</Text>
-            <View className={`flex-row rounded-full p-1.5 ${isDark ? "bg-[#252033]" : "bg-purple-100"}`}>
+            <Text className={`mb-3 text-xs font-bold ${labelText}`}>
+              Theme
+            </Text>
+            <View
+              className={`flex-row rounded-full p-1.5 ${
+                isDark ? "bg-[#0e0a1a]" : "bg-purple-100"
+              }`}
+            >
               {(["light", "dark"] as const).map((t) => {
                 const active = theme === t;
                 return (
@@ -193,7 +195,13 @@ export default function SettingsScreen({ onBack }: Props) {
                     <Feather
                       name={t === "light" ? "sun" : "moon"}
                       size={14}
-                      color={active ? "#ffffff" : isDark ? "#c4b5fd" : "#7c3aed"}
+                      color={
+                        active
+                          ? "#ffffff"
+                          : isDark
+                            ? "#c4b5fd"
+                            : "#7c3aed"
+                      }
                     />
                     <Text
                       className={`text-xs font-bold capitalize ${
@@ -210,21 +218,20 @@ export default function SettingsScreen({ onBack }: Props) {
                 );
               })}
             </View>
-          </View>
+          </SectionCard>
 
           {/* ─── Practice defaults ─── */}
-          <View
-            className={`mt-5 rounded-3xl border p-5 ${cardBorder} ${cardBg}`}
+          <SectionCard
+            title="Practice defaults"
+            icon="briefcase"
+            cardBg={cardBg}
+            cardBorder={cardBorder}
+            divider={divider}
+            headingText={headingText}
             style={cardShadow}
+            marginTop
           >
-            <View className="mb-4 flex-row items-center gap-2">
-              <Feather name="briefcase" size={16} color="#7c3aed" />
-              <Text className={`text-sm font-bold ${headingText}`}>
-                Practice defaults
-              </Text>
-            </View>
-
-            <Text className={`mb-2 text-xs font-bold ${labelText}`}>
+            <Text className={`mb-3 text-xs font-bold ${labelText}`}>
               Default room for new sessions
             </Text>
             <View className="mb-5 flex-row flex-wrap gap-2">
@@ -235,21 +242,13 @@ export default function SettingsScreen({ onBack }: Props) {
                   <Pressable
                     key={r}
                     onPress={() => update("defaultRoom", r)}
-                    className={`rounded-full px-3.5 py-2 ${
-                      active
-                        ? "bg-purple-800"
-                        : isDark
-                          ? "bg-[#252033]"
-                          : "bg-purple-100"
+                    className={`rounded-full px-4 py-2.5 ${
+                      active ? "bg-purple-800" : chipBg
                     }`}
                   >
                     <Text
                       className={`text-[11px] font-bold ${
-                        active
-                          ? "text-white"
-                          : isDark
-                            ? "text-purple-200"
-                            : "text-purple-800"
+                        active ? "text-white" : chipText
                       }`}
                     >
                       {label}
@@ -259,8 +258,8 @@ export default function SettingsScreen({ onBack }: Props) {
               })}
             </View>
 
-            <Text className={`mb-2 text-xs font-bold ${labelText}`}>
-              Default duration (minutes)
+            <Text className={`mb-3 text-xs font-bold ${labelText}`}>
+              Default duration
             </Text>
             <View className="flex-row flex-wrap gap-2">
               {DURATION_OPTIONS.map((d) => {
@@ -269,21 +268,13 @@ export default function SettingsScreen({ onBack }: Props) {
                   <Pressable
                     key={d}
                     onPress={() => update("defaultDuration", d)}
-                    className={`rounded-full px-3.5 py-2 ${
-                      active
-                        ? "bg-purple-800"
-                        : isDark
-                          ? "bg-[#252033]"
-                          : "bg-purple-100"
+                    className={`rounded-full px-4 py-2.5 ${
+                      active ? "bg-purple-800" : chipBg
                     }`}
                   >
                     <Text
                       className={`text-[11px] font-bold ${
-                        active
-                          ? "text-white"
-                          : isDark
-                            ? "text-purple-200"
-                            : "text-purple-800"
+                        active ? "text-white" : chipText
                       }`}
                     >
                       {d} min
@@ -292,90 +283,97 @@ export default function SettingsScreen({ onBack }: Props) {
                 );
               })}
             </View>
-          </View>
+          </SectionCard>
 
           {/* ─── Notifications ─── */}
-          <View
-            className={`mt-5 rounded-3xl border p-5 ${cardBorder} ${cardBg}`}
+          <SectionCard
+            title="Notifications"
+            icon="bell"
+            cardBg={cardBg}
+            cardBorder={cardBorder}
+            divider={divider}
+            headingText={headingText}
             style={cardShadow}
+            marginTop
           >
-            <View className="mb-4 flex-row items-center gap-2">
-              <Feather name="bell" size={16} color="#7c3aed" />
-              <Text className={`text-sm font-bold ${headingText}`}>
-                Notifications
-              </Text>
+            <View className="gap-3">
+              <ToggleRow
+                icon="clock"
+                label="Starting soon"
+                hint="Alert when a session starts within 1 hour"
+                value={prefs.notifySoon}
+                onToggle={(v) => update("notifySoon", v)}
+                isDark={isDark}
+                headingText={headingText}
+                bodyText={bodyText}
+                rowBg={chipBg}
+              />
+
+              <ToggleRow
+                icon="alert-circle"
+                label="Stuck in progress"
+                hint="Remind me when a session has been in progress for 2+ hours"
+                value={prefs.notifyInProgress}
+                onToggle={(v) => update("notifyInProgress", v)}
+                isDark={isDark}
+                headingText={headingText}
+                bodyText={bodyText}
+                rowBg={chipBg}
+              />
+
+              <ToggleRow
+                icon="alert-triangle"
+                label="Missed appointments"
+                hint="Flag planned sessions that went uncompleted"
+                value={prefs.notifyMissed}
+                onToggle={(v) => update("notifyMissed", v)}
+                isDark={isDark}
+                headingText={headingText}
+                bodyText={bodyText}
+                rowBg={chipBg}
+              />
             </View>
+          </SectionCard>
 
-            <ToggleRow
-              icon="clock"
-              label="Starting soon"
-              hint="Alert when a session starts within 1 hour"
-              value={prefs.notifySoon}
-              onToggle={(v) => update("notifySoon", v)}
-              isDark={isDark}
-              headingText={headingText}
-              bodyText={bodyText}
-              rowBg={rowBg}
-            />
-
-            <View className="h-3" />
-
-            <ToggleRow
-              icon="alert-circle"
-              label="Stuck in progress"
-              hint="Remind me when a session has been in progress for 2+ hours"
-              value={prefs.notifyInProgress}
-              onToggle={(v) => update("notifyInProgress", v)}
-              isDark={isDark}
-              headingText={headingText}
-              bodyText={bodyText}
-              rowBg={rowBg}
-            />
-
-            <View className="h-3" />
-
-            <ToggleRow
-              icon="alert-triangle"
-              label="Missed appointments"
-              hint="Flag planned sessions that went uncompleted"
-              value={prefs.notifyMissed}
-              onToggle={(v) => update("notifyMissed", v)}
-              isDark={isDark}
-              headingText={headingText}
-              bodyText={bodyText}
-              rowBg={rowBg}
-            />
-          </View>
-
-          {/* ─── Data ─── */}
-          <View
-            className={`mt-5 rounded-3xl border p-5 ${cardBorder} ${cardBg}`}
-            style={cardShadow}
-          >
-            <View className="mb-4 flex-row items-center gap-2">
-              <Feather name="database" size={16} color="#7c3aed" />
-              <Text className={`text-sm font-bold ${headingText}`}>
-                Data
-              </Text>
-            </View>
-
-            <Pressable
-              onPress={resetToDefaults}
-              className={`flex-row items-center gap-3 rounded-2xl px-4 py-4 ${rowBg}`}
+          {/* ─── Danger zone ─── */}
+          <View className="mt-8">
+            <Text
+              className={`mb-3 px-1 text-[10px] font-bold uppercase tracking-widest ${bodyText}`}
             >
-              <Feather name="rotate-ccw" size={16} color="#dc2626" />
-              <View className="flex-1">
-                <Text className="text-sm font-bold text-red-500">
-                  Reset all settings
-                </Text>
-                <Text className={`mt-0.5 text-xs ${bodyText}`}>
-                  Restore defaults for all preferences
-                </Text>
-              </View>
-            </Pressable>
+              Danger zone
+            </Text>
+            <View
+              className={`overflow-hidden rounded-3xl border ${
+                isDark ? "border-red-900/40" : "border-red-100"
+              } ${cardBg}`}
+              style={cardShadow}
+            >
+              <Pressable
+                onPress={resetToDefaults}
+                className="flex-row items-center gap-3 px-5 py-4"
+              >
+                <View
+                  className={`h-10 w-10 items-center justify-center rounded-xl ${
+                    isDark ? "bg-red-950/40" : "bg-red-50"
+                  }`}
+                >
+                  <Feather name="rotate-ccw" size={16} color="#dc2626" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-bold text-red-600">
+                    Reset all settings
+                  </Text>
+                  <Text className={`mt-0.5 text-xs ${bodyText}`}>
+                    Restore preferences to their defaults
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={16} color="#f87171" />
+              </Pressable>
+            </View>
           </View>
 
-          <View className="mt-8 items-center">
+          {/* Footer */}
+          <View className="mt-6 items-center">
             <Text className={`text-[10px] ${bodyText}`}>
               Changes are saved automatically
             </Text>
@@ -386,6 +384,47 @@ export default function SettingsScreen({ onBack }: Props) {
   );
 }
 
+/* ─── Section wrapper ─── */
+function SectionCard({
+  title,
+  icon,
+  children,
+  cardBg,
+  cardBorder,
+  divider,
+  headingText,
+  style,
+  marginTop,
+}: {
+  title: string;
+  icon: string;
+  children: React.ReactNode;
+  cardBg: string;
+  cardBorder: string;
+  divider: string;
+  headingText: string;
+  style?: object;
+  marginTop?: boolean;
+}) {
+  return (
+    <View
+      className={`overflow-hidden rounded-3xl border ${cardBorder} ${cardBg} ${
+        marginTop ? "mt-5" : ""
+      }`}
+      style={style}
+    >
+      <View
+        className={`flex-row items-center gap-2 border-b px-5 py-4 ${divider}`}
+      >
+        <Feather name={icon as any} size={16} color="#7c3aed" />
+        <Text className={`text-sm font-bold ${headingText}`}>{title}</Text>
+      </View>
+      <View className="p-5">{children}</View>
+    </View>
+  );
+}
+
+/* ─── Animated toggle row ─── */
 function ToggleRow({
   icon,
   label,
@@ -407,6 +446,21 @@ function ToggleRow({
   bodyText: string;
   rowBg: string;
 }) {
+  const slideAnim = useRef(new Animated.Value(value ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(slideAnim, {
+      toValue: value ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [value, slideAnim]);
+
+  const translateX = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 20],
+  });
+
   return (
     <Pressable
       onPress={() => onToggle(!value)}
@@ -421,12 +475,17 @@ function ToggleRow({
         <Text className={`text-sm font-bold ${headingText}`}>{label}</Text>
         <Text className={`mt-0.5 text-xs ${bodyText}`}>{hint}</Text>
       </View>
+
+      {/* Animated toggle */}
       <View
-        className={`h-6 w-11 items-center justify-${
-          value ? "end" : "start"
-        } rounded-full p-0.5 ${value ? "bg-purple-800" : "bg-slate-300"}`}
+        className={`h-6 w-11 rounded-full p-0.5 ${
+          value ? "bg-purple-800" : "bg-slate-300"
+        }`}
       >
-        <View className="h-5 w-5 rounded-full bg-white" />
+        <Animated.View
+          style={{ transform: [{ translateX }] }}
+          className="h-5 w-5 rounded-full bg-white shadow-sm"
+        />
       </View>
     </Pressable>
   );

@@ -28,6 +28,7 @@ import BottomNav from "../components/BottomNav";
 import { NotesSkeleton } from "../components/Skeleton";
 import PatientFormModal from "./PatientFormModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 interface Props {
   onSelectPatient: (id: string) => void;
   onNavigateHome: () => void;
@@ -63,6 +64,8 @@ export default function NotesScreen({
   onOpenSettings,
 }: Props) {
   const { isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -70,7 +73,9 @@ export default function NotesScreen({
   const [error, setError] = useState("");
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
+  const [showPatientForm, setShowPatientForm] = useState(false);
 
+  // ── Theme tokens ─────────────────────────────────────────
   const bg = isDark ? "bg-[#0e0a1a]" : "bg-[#faf8fc]";
   const cardBg = isDark ? "bg-[#1a1525]" : "bg-white";
   const cardBorder = isDark ? "border-purple-900/40" : "border-purple-100";
@@ -79,12 +84,10 @@ export default function NotesScreen({
   const labelText = isDark ? "text-slate-500" : "text-slate-400";
   const pillBg = isDark ? "bg-purple-950" : "bg-purple-100";
   const pillText = isDark ? "text-purple-200" : "text-purple-800";
-  const [showPatientForm, setShowPatientForm] = useState(false);
-  const insets = useSafeAreaInsets();
 
   const load = useCallback(async () => {
     setError("");
-    const start = subDays(new Date(), 60); // 60 days back max
+    const start = subDays(new Date(), 60);
     start.setHours(0, 0, 0, 0);
 
     const { data, error } = await supabase
@@ -172,14 +175,23 @@ export default function NotesScreen({
       });
   }, [visible]);
 
-  if (loading) {
-    return (
-      <>
-        <StatusBar style="light" />
-        <NotesSkeleton />
-      </>
-    );
-  }
+if (loading) {
+  return (
+    <View className="flex-1">
+      <StatusBar style="light" />
+      <NotesSkeleton />
+      <BottomNav
+        active="notes"
+        onNavigate={(tab) => {
+          if (tab === "home") onNavigateHome();
+         if (tab === "schedule") onOpenSchedule();
+          if (tab === "patients") onOpenPatients();
+        }}
+       onAdd={() => setShowPatientForm(true)}
+      />
+    </View>
+  );
+}
 
   return (
     <View className={`flex-1 ${bg}`}>
@@ -196,14 +208,18 @@ export default function NotesScreen({
           />
         }
       >
-        {/* Hero header */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-10"
-         style={{ paddingTop: insets.top + 12 }}>
-          <View className="flex-row items-center px-5">
+        {/* ─── Hero header ─── */}
+        <View
+          className="rounded-b-[40px] bg-purple-800 pb-10"
+          style={{ paddingTop: insets.top + 12 }}
+        >
+          <View className="flex-row items-center justify-between px-5">
             <View className="w-24">
-              <ProfileMenu onOpenProfile={onOpenProfile} 
-              onOpenAbout={onOpenAbout}
-               onOpenSettings={onOpenSettings} />
+              <ProfileMenu
+                onOpenProfile={onOpenProfile}
+                onOpenAbout={onOpenAbout}
+                onOpenSettings={onOpenSettings}
+              />
             </View>
 
             <View className="flex-1 flex-row items-center justify-center gap-2">
@@ -263,7 +279,7 @@ export default function NotesScreen({
           </View>
         </View>
 
-        {/* Notes feed */}
+        {/* ─── Notes feed ─── */}
         <View className="mt-6 px-5">
           {error ? (
             <View className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
@@ -302,9 +318,7 @@ export default function NotesScreen({
                 <View className="mb-3 flex-row items-center gap-2">
                   <Text
                     className={`text-[10px] font-bold uppercase tracking-widest ${
-                      group.label === "Today"
-                        ? "text-purple-600"
-                        : labelText
+                      group.label === "Today" ? "text-purple-600" : labelText
                     }`}
                   >
                     {group.label}
@@ -316,28 +330,35 @@ export default function NotesScreen({
                   </View>
                 </View>
 
-                {/* Session cards */}
+                {/* Session cards — match Dashboard layout */}
                 <View className="gap-3">
                   {group.sessions.map((s) => (
                     <Pressable
                       key={s.id}
                       onPress={() => setSelectedSession(s)}
-                      className={`flex-row items-center gap-3 rounded-2xl border p-4 ${cardBorder} ${cardBg}`}
+                      className={`flex-row items-center gap-4 rounded-2xl border p-4 ${cardBorder} ${cardBg}`}
                       style={cardShadow}
                     >
-                      <View className="w-14">
+                      {/* Time column */}
+                      <View className="w-16 shrink-0">
                         <Text
-                          className={`text-base font-extrabold ${headingText}`}
+                          className={`text-xl font-extrabold leading-none ${headingText}`}
                         >
                           {format(parseISO(s.session_date), "HH:mm")}
                         </Text>
-                        <Text className={`text-[9px] ${bodyText}`}>
-                          {format(parseISO(s.session_date), "a")}
-                        </Text>
+                        {s.room ? (
+                          <View className="mt-1.5 flex-row items-center gap-1">
+                            <Feather name="clock" size={10} color="#94a3b8" />
+                            <Text className={`text-[10px] font-medium ${bodyText}`}>
+                              {s.room}
+                            </Text>
+                          </View>
+                        ) : null}
                       </View>
 
+                      {/* Accent bar */}
                       <View
-                        className="h-12 w-1 rounded-full"
+                        className="h-12 w-[3px] shrink-0 rounded-full"
                         style={{
                           backgroundColor:
                             s.status === "COMPLETED"
@@ -348,36 +369,30 @@ export default function NotesScreen({
                         }}
                       />
 
-                      <View className="flex-1">
+                      {/* Patient + treatment */}
+                      <View className="min-w-0 flex-1">
                         <Text
-                          className={`text-sm font-extrabold ${headingText}`}
+                          className={`text-base font-extrabold leading-tight ${headingText}`}
                           numberOfLines={1}
                         >
                           {s.patients?.first_name} {s.patients?.last_name}
                         </Text>
                         <Text
-                          className={`mt-0.5 text-xs ${bodyText}`}
+                          className={`mt-0.5 text-sm ${bodyText}`}
                           numberOfLines={1}
                         >
                           {s.title}
                         </Text>
-                        {s.description ? (
-                          <Text
-                            className={`mt-1 text-[11px] ${bodyText}`}
-                            numberOfLines={1}
-                          >
-                            {s.description}
-                          </Text>
-                        ) : null}
                       </View>
 
+                      {/* Status pill */}
                       <View
                         style={{ backgroundColor: statusColors[s.status]?.bg }}
-                        className="rounded-full px-2.5 py-1"
+                        className="shrink-0 rounded-full px-3.5 py-1.5"
                       >
                         <Text
                           style={{ color: statusColors[s.status]?.text }}
-                          className="text-[9px] font-bold"
+                          className="text-[10px] font-bold"
                         >
                           {STATUS_LABEL[s.status]}
                         </Text>
@@ -399,9 +414,7 @@ export default function NotesScreen({
           if (tab === "schedule") onOpenSchedule();
           if (tab === "patients") onOpenPatients();
         }}
-        onAdd={() => setShowPatientForm(true) 
-         
-        }
+        onAdd={() => setShowPatientForm(true)}
       />
 
       {/* Session detail sheet */}
@@ -432,6 +445,7 @@ export default function NotesScreen({
         }}
       />
 
+      {/* Add patient modal */}
       <PatientFormModal
         visible={showPatientForm}
         onClose={() => setShowPatientForm(false)}

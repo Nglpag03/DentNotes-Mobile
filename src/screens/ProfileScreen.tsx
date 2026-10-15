@@ -2,8 +2,7 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
+  Image,
   Pressable,
   ScrollView,
   Text,
@@ -12,15 +11,13 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { cardShadow } from "../lib/theme";
-
-import { Image } from "react-native";
-import * as ImagePicker from "expo-image-picker";
-import { pickAvatarImage, uploadAvatar, deleteOldAvatars } from "../lib/avatar";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { pickAvatarImage, uploadAvatar } from "../lib/avatar";
 
 interface Props {
   onBack: () => void;
@@ -29,12 +26,17 @@ interface Props {
 export default function ProfileScreen({ onBack }: Props) {
   const { session } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const meta = session?.user.user_metadata ?? {};
   const email = session?.user.email ?? "";
 
   const [firstName, setFirstName] = useState(meta.first_name ?? "");
   const [lastName, setLastName] = useState(meta.last_name ?? "");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(
+    meta.avatar_url ?? null,
+  );
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -42,6 +44,7 @@ export default function ProfileScreen({ onBack }: Props) {
   const initials =
     `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "DR";
 
+  // ── Theme tokens ─────────────────────────────────────────
   const bg = isDark ? "bg-[#0e0a1a]" : "bg-[#faf8fc]";
   const cardBg = isDark ? "bg-[#1a1525]" : "bg-white";
   const cardBorder = isDark ? "border-purple-900/40" : "border-purple-100";
@@ -51,16 +54,13 @@ export default function ProfileScreen({ onBack }: Props) {
   const inputBg = isDark ? "bg-[#252033]" : "bg-purple-50";
   const inputText = isDark ? "text-white" : "text-slate-900";
   const inputBorder = isDark ? "border-purple-900/40" : "border-purple-100";
-  const insets = useSafeAreaInsets();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(
-  meta.avatar_url ?? null,
-  );
-  const [uploading, setUploading] = useState(false);
+  const divider = isDark ? "border-slate-800" : "border-slate-100";
 
   const isDirty =
     firstName.trim() !== (meta.first_name ?? "") ||
     lastName.trim() !== (meta.last_name ?? "");
 
+  // ── Handlers ─────────────────────────────────────────────
   async function handleSave() {
     if (!firstName.trim() || !lastName.trim()) {
       setError("Both first and last name are required.");
@@ -84,45 +84,39 @@ export default function ProfileScreen({ onBack }: Props) {
       return;
     }
 
+    await supabase.auth.refreshSession();
     setSavedAt(Date.now());
-    setTimeout(() => setSavedAt(null), 2000);
+    setTimeout(() => setSavedAt(null), 2200);
   }
 
   async function handlePickAvatar() {
-  try {
-    const uri = await pickAvatarImage();
-    if (!uri) return;
+    try {
+      const uri = await pickAvatarImage();
+      if (!uri) return;
 
-    setUploading(true);
-    setError("");
+      setUploading(true);
+      setError("");
 
-    const userId = session?.user.id;
-    if (!userId) throw new Error("Not signed in.");
+      const userId = session?.user.id;
+      if (!userId) throw new Error("Not signed in.");
 
-    const publicUrl = await uploadAvatar(userId, uri);
+      const publicUrl = await uploadAvatar(userId, uri);
 
-const { error: updateError } = await supabase.auth.updateUser({
-  data: { avatar_url: publicUrl },
-});
-if (updateError) throw updateError;
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { avatar_url: publicUrl },
+      });
+      if (updateError) throw updateError;
 
-// 👇 Force the session to refresh so AuthContext re-renders
-await supabase.auth.refreshSession();
-
-setAvatarUrl(publicUrl);
-
-    setAvatarUrl(publicUrl);
-    setSavedAt(Date.now());
-    setTimeout(() => setSavedAt(null), 2000);
-
-    // Best-effort cleanup of old files
-    // deleteOldAvatars(userId, publicUrl);
-  } catch (err) {
-    setError(err instanceof Error ? err.message : "Upload failed");
-  } finally {
-    setUploading(false);
+      await supabase.auth.refreshSession();
+      setAvatarUrl(publicUrl);
+      setSavedAt(Date.now());
+      setTimeout(() => setSavedAt(null), 2200);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
   }
-}
 
   async function handleResetPassword() {
     if (!email) return;
@@ -155,12 +149,15 @@ setAvatarUrl(publicUrl);
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 60 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Hero header */}
-        <View className="rounded-b-[40px] bg-purple-800 pb-10" 
-        style={{ paddingTop: insets.top + 12 }}>
+        {/* ─── Hero ─── */}
+        <View
+          className="rounded-b-[40px] bg-purple-800 pb-20"
+          style={{ paddingTop: insets.top + 12 }}
+        >
+          {/* Top row */}
           <View className="flex-row items-center px-5">
             <View className="w-24">
               <Pressable
@@ -193,169 +190,177 @@ setAvatarUrl(publicUrl);
               </Pressable>
             </View>
           </View>
-
-          {/* Big avatar */}
-<View className="mt-8 items-center">
-  <Pressable
-    onPress={handlePickAvatar}
-    disabled={uploading}
-    className="relative"
-  >
-    <View
-      className="h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-white/20"
-      style={{ borderWidth: 4, borderColor: "rgba(255,255,255,0.3)" }}
-    >
- {uploading ? (
-  <ActivityIndicator color="#ffffff" />
-) : avatarUrl ? (
-  <Image
-    source={{ uri: avatarUrl, cache: "reload" }}
-    style={{ width: 112, height: 112 }}
-  />
-) : (
-  <Text className="text-4xl font-extrabold text-white">
-    {initials}
-  </Text>
-)}
-    </View>
-
-    {/* Camera badge */}
-    <View
-      className="absolute bottom-0 right-0 h-9 w-9 items-center justify-center rounded-full bg-white"
-      style={{
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 4,
-      }}
-    >
-      <Feather name="camera" size={16} color="#7c3aed" />
-    </View>
-  </Pressable>
-
-  <Text className="mt-4 text-xl font-extrabold text-white">
-    Dr. {firstName} {lastName}
-  </Text>
-  <Text className="mt-1 text-xs text-purple-200">{email}</Text>
-
-  <Pressable
-    onPress={handlePickAvatar}
-    disabled={uploading}
-    className="mt-3 rounded-full bg-white/15 px-4 py-2"
-  >
-    <Text className="text-xs font-bold text-white">
-      {uploading
-        ? "Uploading…"
-        : avatarUrl
-          ? "Change photo"
-          : "Add photo"}
-    </Text>
-  </Pressable>
-</View>
         </View>
 
-        <View className="px-5 pt-6">
-          {error ? (
-            <View className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
-              <Text className="text-sm text-red-700">{error}</Text>
+        {/* ─── Avatar card (peeks into hero) ─── */}
+        <View className="-mt-14 items-center px-5">
+          <Pressable onPress={handlePickAvatar} disabled={uploading}>
+            <View
+              className={`h-28 w-28 items-center justify-center overflow-hidden rounded-full ${cardBg}`}
+              style={{ borderWidth: 4, borderColor: "#7c3aed" }}
+            >
+              {uploading ? (
+                <ActivityIndicator color="#7c3aed" />
+              ) : avatarUrl ? (
+                <Image
+                  source={{ uri: avatarUrl, cache: "reload" }}
+                  style={{ width: 112, height: 112 }}
+                />
+              ) : (
+                <Text className="text-3xl font-extrabold text-purple-800">
+                  {initials}
+                </Text>
+              )}
             </View>
-          ) : null}
 
+            {/* Camera badge */}
+            <View
+              className="absolute bottom-0 right-0 h-9 w-9 items-center justify-center rounded-full bg-purple-800"
+              style={{
+                borderWidth: 3,
+                borderColor: isDark ? "#0e0a1a" : "#faf8fc",
+              }}
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Feather name="camera" size={14} color="#ffffff" />
+              )}
+            </View>
+          </Pressable>
+
+          <Text className={`mt-3 text-xl font-extrabold ${headingText}`}>
+            Dr. {firstName} {lastName}
+          </Text>
+          <Text className={`mt-1 text-xs ${bodyText}`}>{email}</Text>
+        </View>
+
+        {/* ─── Feedback banners ─── */}
+        <View className="px-5 pt-6">
           {savedAt ? (
             <View className="mb-4 flex-row items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
               <Feather name="check-circle" size={16} color="#047857" />
               <Text className="text-sm font-semibold text-emerald-700">
-                Profile updated
+                Changes saved
               </Text>
             </View>
           ) : null}
 
-          {/* Personal info */}
+          {error ? (
+            <View
+              className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3"
+              role="alert"
+            >
+              <Text className="text-sm text-red-700">{error}</Text>
+            </View>
+          ) : null}
+
+          {/* ─── Personal info ─── */}
           <View
-            className={`rounded-3xl border p-5 ${cardBorder} ${cardBg}`}
+            className={`rounded-3xl border ${cardBorder} ${cardBg}`}
             style={cardShadow}
           >
-            <View className="mb-4 flex-row items-center gap-2">
+            <View
+              className={`flex-row items-center gap-2 border-b px-5 py-4 ${divider}`}
+            >
               <Feather name="user" size={16} color="#7c3aed" />
               <Text className={`text-sm font-bold ${headingText}`}>
                 Personal info
               </Text>
             </View>
 
-            <Text className={`mb-2 text-xs font-bold ${labelText}`}>
-              First name
-            </Text>
-            <TextInput
-              value={firstName}
-              onChangeText={setFirstName}
-              placeholder="Jane"
-              placeholderTextColor="#94a3b8"
-              autoCapitalize="words"
-              className={`mb-5 rounded-2xl border px-4 py-4 text-sm ${inputBg} ${inputText} ${inputBorder}`}
-            />
+            <View className="p-5">
+              <Text className={`mb-2 text-xs font-bold ${labelText}`}>
+                First name
+              </Text>
+              <TextInput
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Jane"
+                placeholderTextColor="#94a3b8"
+                autoCapitalize="words"
+                className={`mb-4 rounded-2xl border px-4 py-4 text-sm ${inputBg} ${inputText} ${inputBorder}`}
+              />
 
-            <Text className={`mb-2 text-xs font-bold ${labelText}`}>
-              Last name
-            </Text>
-            <TextInput
-              value={lastName}
-              onChangeText={setLastName}
-              placeholder="Doe"
-              placeholderTextColor="#94a3b8"
-              autoCapitalize="words"
-              className={`mb-5 rounded-2xl border px-4 py-4 text-sm ${inputBg} ${inputText} ${inputBorder}`}
-            />
+              <Text className={`mb-2 text-xs font-bold ${labelText}`}>
+                Last name
+              </Text>
+              <TextInput
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Doe"
+                placeholderTextColor="#94a3b8"
+                autoCapitalize="words"
+                className={`mb-4 rounded-2xl border px-4 py-4 text-sm ${inputBg} ${inputText} ${inputBorder}`}
+              />
 
-            <Text className={`mb-2 text-xs font-bold ${labelText}`}>Email</Text>
-            <View
-              className={`rounded-2xl border px-4 py-4 ${inputBg} ${inputBorder}`}
-            >
-              <Text className={`text-sm ${bodyText}`}>{email}</Text>
-            </View>
+              <Text className={`mb-2 text-xs font-bold ${labelText}`}>
+                Email
+              </Text>
+              <View
+                className={`flex-row items-center gap-2 rounded-2xl border px-4 py-4 ${inputBg} ${inputBorder}`}
+              >
+                <Feather name="mail" size={14} color="#94a3b8" />
+                <Text className={`flex-1 text-sm ${bodyText}`}>{email}</Text>
+                <View className="rounded-full bg-emerald-100 px-2 py-0.5">
+                  <Text className="text-[9px] font-bold text-emerald-700">
+                    VERIFIED
+                  </Text>
+                </View>
+              </View>
 
-            <Pressable
-              onPress={handleSave}
-              disabled={busy || !isDirty}
-              className={`mt-5 h-12 items-center justify-center rounded-2xl ${
-                busy || !isDirty ? "bg-purple-300" : "bg-purple-800"
-              }`}
-            >
-              {busy ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text className="text-sm font-bold text-white">
-                  {isDirty ? "Save changes" : "Saved"}
-                </Text>
+              {/* Save button only shows when there are changes */}
+              {isDirty && (
+                <Pressable
+                  onPress={handleSave}
+                  disabled={busy}
+                  className={`mt-5 h-12 items-center justify-center rounded-2xl ${
+                    busy ? "bg-purple-400" : "bg-purple-800"
+                  }`}
+                >
+                  {busy ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <Text className="text-sm font-bold text-white">
+                      Save changes
+                    </Text>
+                  )}
+                </Pressable>
               )}
-            </Pressable>
+            </View>
           </View>
 
-          {/* Account */}
+          {/* ─── Security ─── */}
           <View
-            className={`mt-5 rounded-3xl border p-5 ${cardBorder} ${cardBg}`}
+            className={`mt-5 overflow-hidden rounded-3xl border ${cardBorder} ${cardBg}`}
             style={cardShadow}
           >
-            <View className="mb-4 flex-row items-center gap-2">
+            <View
+              className={`flex-row items-center gap-2 border-b px-5 py-4 ${divider}`}
+            >
               <Feather name="shield" size={16} color="#7c3aed" />
               <Text className={`text-sm font-bold ${headingText}`}>
-                Account
+                Security
               </Text>
             </View>
 
             <Pressable
               onPress={handleResetPassword}
-              className={`flex-row items-center gap-3 rounded-2xl px-4 py-4 ${
-                isDark ? "bg-[#252033]" : "bg-purple-50"
-              }`}
+              className="flex-row items-center gap-3 px-5 py-4"
             >
-              <Feather name="lock" size={16} color="#7c3aed" />
+              <View
+                className={`h-10 w-10 items-center justify-center rounded-xl ${
+                  isDark ? "bg-purple-950" : "bg-purple-100"
+                }`}
+              >
+                <Feather name="lock" size={16} color="#7c3aed" />
+              </View>
               <View className="flex-1">
                 <Text className={`text-sm font-bold ${headingText}`}>
-                  Reset password
+                  Change password
                 </Text>
                 <Text className={`mt-0.5 text-xs ${bodyText}`}>
-                  We'll email you a reset link
+                  We'll email you a secure reset link
                 </Text>
               </View>
               <Feather
@@ -366,10 +371,10 @@ setAvatarUrl(publicUrl);
             </Pressable>
           </View>
 
-          {/* Meta info */}
-          <View className="mt-6 items-center">
+          {/* ─── App preferences shortcut ─── */}
+          <View className="mt-5 items-center">
             <Text className={`text-[10px] ${bodyText}`}>
-              Signed in as {email}
+              Looking for more options? Check Settings in the menu.
             </Text>
           </View>
         </View>
